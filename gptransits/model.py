@@ -1,5 +1,6 @@
 import numpy as np
-from component import *
+import celerite
+from .component import Component
 
 # TODO
 # Class to implement the logic to integrate both MeanModel and GPModel in the same container

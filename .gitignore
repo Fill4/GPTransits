@@ -91,7 +91,8 @@ ENV/
 
 
 # Ignore giant results folder
-#gptransits/Figures
+gptransits/tess_artificial_data/raw_data
+gptransits/tess_data_simulator
 gptransits/results
 .vs
 .vscode
