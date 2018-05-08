@@ -28,20 +28,25 @@ def main(mean_model, gp_model, settings):
 
 	# Handle the input flags of the script
 	parser = argparse.ArgumentParser(description='Parse arguments')
-	group = parser.add_mutually_exclusive_group(required=True)
-	group.add_argument('--file', '-f', type=str, dest='input_file', help='Filename with lightcurve data', required=False)
-	group.add_argument('--list', '-l', type=str, dest='input_list', help='Filename with list of lightcurve files', required=False)
+	group = parser.add_mutually_exclusive_group(required=False)
+	group.add_argument('--file', '-f', type=str, dest='input_file', help='Filename with lightcurve data', required=False)#, default=None)
+	group.add_argument('--list', '-l', type=str, dest='input_list', help='Filename with list of lightcurve files', required=False)#, default=None)
 	parser.add_argument('--output', '-o', dest='output', nargs='?', default=False, help='Whether to write results to a file or not')
 	parser.add_argument('--verbose', '-v', dest='verbose', action='store_false', help='Enable verbose mode')
 	args = parser.parse_args()
 
-	if args.verbose:
+	if args.verbose or settings.verbose:
 		logging.basicConfig(format='%(message)s', level=logging.INFO)
 
+	# Code uses first the arguments from argparse and then the values from the settings
 	if args.input_file:
 		file_list = [args.input_file]
+	elif settings.input_file:
+		file_list = [settings.input_file]
 	elif args.input_list:
 		file_list = [line.rstrip() for line in open(args.input_list, 'r')]
+	elif settings.input_list:
+		file_list = [line.rstrip() for line in open(settings.input_list, 'r')]
 	else:
 		raise ValueError("Please choose a file or a list")
 
@@ -65,9 +70,16 @@ def run(file, mean_model, gp_model, output, settings):
 	filename = os.path.splitext(os.path.basename(file))[0]
 	logging.info('Starting {:} ...'.format(filename))
 
-
 	# Read data from input file and instanciate the GP using the time array and model
-	data = np.loadtxt(file, unpack=True)
+	try:
+		data = np.loadtxt(file, unpack=True)
+	except FileNotFoundError:
+		file = "{}/{}".format(os.getcwd(), file)
+		try:
+			data = np.loadtxt(file, unpack=True)
+		except FileNotFoundError:
+			logging.error("Couldn't open file: " + file)
+			sys.exit(1)
 	model = Model(mean_model, gp_model, data)
 
 	# Run Minimizationn
@@ -133,7 +145,8 @@ def run(file, mean_model, gp_model, output, settings):
 		psd_plot = plot.plot_psd(model, data, parseval_norm=True)
 		psd_plot.savefig('{}/{}_psd.png'.format(os.path.dirname(file), filename), dpi=300)
 	if settings.plots:
-		# plt.show()
+		if settings.show_plots:
+			plt.show()
 		plt.close('all')
 
 	# Print execution time
