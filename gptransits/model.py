@@ -59,8 +59,6 @@ class MeanModel(object):
 
 # Model that contains the components of the GP. Might be joined with GP in the future.
 class GPModel(object):
-	component_array = []
-
 	def __repr__(self):
 		string = 'Model with {0} components:\n'.format(len(self.component_array))
 		for component in self.component_array:
@@ -69,6 +67,7 @@ class GPModel(object):
 
 	def	__init__(self, *args):
 		if len(args):
+			self.component_array = []
 			for arg in args:
 				if isinstance(arg, Component):
 					self.component_array.append(arg)
