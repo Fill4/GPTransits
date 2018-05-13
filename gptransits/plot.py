@@ -4,13 +4,13 @@ import corner
 from astropy.stats import LombScargle
 from scipy.signal import medfilt
 
-def plot_corner(model, samples):
+def plot_corner(model, samples, settings):
 	labels = model.gp.gp_model.get_parameters_latex()
 	params = model.gp.gp_model.get_parameters()
 	corner_plot = corner.corner(samples, labels=labels, quantiles=[0.5], show_titles=True, title_fmt='.3f', truths=params)
 	return corner_plot
 
-def plot_gp(model, data):
+def plot_gp(model, data, settings):
 
 	gp_plot, ax = plt.subplots(num=1, figsize=(14, 7))
 	
@@ -35,7 +35,7 @@ def plot_gp(model, data):
 
 	return gp_plot
 
-def plot_psd(model, data, include_data=True, parseval_norm=False):
+def plot_psd(model, data, settings, include_data=True, parseval_norm=False):
 
 	ls_dict = {"Granulation": "--", "OscillationBump": "-.", "WhiteNoise": ":"}
 	alpha_dict = {"Granulation": 0.8, "OscillationBump": 0.8, "WhiteNoise": 0.6}
@@ -59,8 +59,9 @@ def plot_psd(model, data, include_data=True, parseval_norm=False):
 	ax.loglog(freq, nobump_power, ls='--', color='r', label='Model without gaussian')
 	ax.loglog(freq, full_power, ls='-', color='k', label='Full Model')
 
-	ax.set_xlim([1, 300])
-	ax.set_ylim([0.01, 4000])
+	if settings.tess_settings:
+		ax.set_xlim([1, 300])
+		ax.set_ylim([0.01, 4000])
 	
 	# ax.set_title('KIC012008916')
 	ax.set_xlabel(r'Frequency [$\mu$Hz]',fontsize="large")

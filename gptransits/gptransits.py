@@ -10,12 +10,13 @@ import sys, os
 import argparse
 import logging
 
+__all__ = ['main']
+
 #Internal imports
 from .model import Model
 from . import mcmc
 from . import plot
 
-__all__ = ['main']
 
 def main(mean_model, gp_model, settings):
 
@@ -120,34 +121,35 @@ def run(file, mean_model, gp_model, output, settings):
 		z.write(output_buffer)
 		z.close()
 
-
-	# Extra lines for simulated data
-	if os.path.exists('{}/results.dat'.format(os.path.dirname(file))):
-		header = False
-	else: 
-		header = True
-	f = open('{}/results.dat'.format(os.path.dirname(file)), 'a+')
-	if header:
-		f.write("# {:>5}".format("Run") + "".join(["{:>9}{:>8}{:>8}".format(names[i], "-Std", "+Std") for i in range(median.size)]) + "\n")
-	f.write("{:>7}".format(filename) + "".join(["{:>9.3f}{:>8.3f}{:>8.3f}".format(median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)]) + "\n") 
-	f.close()
+	if settings.tess_settings:
+		# Extra lines for simulated data
+		if os.path.exists('{}/results.dat'.format(os.path.dirname(file))):
+			header = False
+		else: 
+			header = True
+		f = open('{}/results.dat'.format(os.path.dirname(file)), 'a+')
+		if header:
+			f.write("# {:>5}".format("Run") + "".join(["{:>9}{:>8}{:>8}".format(names[i], "-Std", "+Std") for i in range(median.size)]) + "\n")
+		f.write("{:>7}".format(filename) + "".join(["{:>9.3f}{:>8.3f}{:>8.3f}".format(median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)]) + "\n") 
+		f.close()
 
 	#------------------------------------------------------------------
-	#	PLOTS
+	#	PLOTS  -  FIX ABSOLUTE PATHS
 	#------------------------------------------------------------------
 	
+	plt.close('all')
 	if settings.plot_gp:
-		gp_plot = plot.plot_gp(model, data)
+		gp_plot = plot.plot_gp(model, data, settings)
 	if settings.plot_corner:
-		corner_plot = plot.plot_corner(model, samples)
+		corner_plot = plot.plot_corner(model, samples, settings)
 		corner_plot.savefig('{}/{}_corner.png'.format(os.path.dirname(file), filename), dpi=300)
 	if settings.plot_psd:
-		psd_plot = plot.plot_psd(model, data, parseval_norm=True)
+		psd_plot = plot.plot_psd(model, data, settings, parseval_norm=True)
 		psd_plot.savefig('{}/{}_psd.png'.format(os.path.dirname(file), filename), dpi=300)
 	if settings.plots:
 		if settings.show_plots:
 			plt.show()
-		plt.close('all')
+	plt.close('all')
 
 	# Print execution time
 	execution_time_star = timeit.default_timer() - init_star_time

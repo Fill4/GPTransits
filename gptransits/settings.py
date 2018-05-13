@@ -16,5 +16,10 @@ class Settings(object):
 		self.plot_gp = False
 		self.plot_corner = False
 		self.plot_psd = False
-		self.plots = any([self.plot_gp, self.plot_corner, self.plot_psd])
+		
+		self.tess_settings = False
+
+	@property
+	def plots(self):
+		return any([self.plot_gp, self.plot_corner, self.plot_psd])
 
