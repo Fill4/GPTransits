@@ -123,11 +123,24 @@ def run(file, mean_model, gp_model, output, settings):
 
 	if settings.tess_settings:
 		# Extra lines for simulated data
-		if os.path.exists('{}/results.dat'.format(os.path.dirname(file))):
+		if os.path.exists('{}/results_model1.dat'.format(os.path.dirname(file))):
 			header = False
 		else: 
 			header = True
-		f = open('{}/results.dat'.format(os.path.dirname(file)), 'a+')
+		f = open('{}/results_model1.dat'.format(os.path.dirname(file)), 'a+')
+		if header:
+			f.write("# {:>5}".format("Run") + "".join(["{:>9}{:>8}{:>8}".format(names[i], "-Std", "+Std") for i in range(median.size)]) + "\n")
+		f.write("{:>7}".format(filename) + "".join(["{:>9.3f}{:>8.3f}{:>8.3f}".format(median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)]) + "\n") 
+		f.close()
+
+	if settings.raw_data_settings:
+		# Extra lines for complete simulated lc
+		output_path = '{}/tess_artificial_data/full_lc_model1.out'.format(os.getcwd())
+		if os.path.exists(output_path):
+			header = False
+		else: 
+			header = True
+		f = open(output_path, 'a+')
 		if header:
 			f.write("# {:>5}".format("Run") + "".join(["{:>9}{:>8}{:>8}".format(names[i], "-Std", "+Std") for i in range(median.size)]) + "\n")
 		f.write("{:>7}".format(filename) + "".join(["{:>9.3f}{:>8.3f}{:>8.3f}".format(median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)]) + "\n") 

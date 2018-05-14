@@ -18,6 +18,7 @@ class Settings(object):
 		self.plot_psd = False
 		
 		self.tess_settings = False
+		self.raw_data_settings = False
 
 	@property
 	def plots(self):
