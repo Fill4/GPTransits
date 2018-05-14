@@ -15,7 +15,11 @@ def plot_gp(model, data, settings):
 	gp_plot, ax = plt.subplots(num=1, figsize=(14, 7))
 	
 	# Plot initial data with errors in both subplots
-	ax.errorbar(model.time/(24*3600), model.flux, yerr=model.error, fmt=".k", capsize=0, label= 'Flux', markersize='3', elinewidth=1)
+	try:
+		err = model.error
+	except AttributeError:
+		err = None
+	ax.errorbar(model.time/(24*3600), model.flux, yerr=err, fmt=".k", capsize=0, label= 'Flux', markersize='3', elinewidth=1)
 	x = np.linspace(model.time[0], model.time[-1], num=2*model.time.size)
 
 	# Plot conditional predictive distribution of the model in upper plot
