@@ -128,7 +128,7 @@ class GPModel(object):
 		f_sampling = 1 / (27.4*24*3600 / 1e6)
 		freq = np.linspace(0.0, nyquist, (nyquist/f_sampling)+1)
 
-		psd_dict = [component.get_psd(freq, time.size) for component in self.component_array]
+		psd_dict = [component.get_psd(freq) for component in self.component_array]
 		return [freq, psd_dict]
 
 	def get_kernel_list(self):
