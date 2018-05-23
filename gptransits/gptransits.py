@@ -146,6 +146,18 @@ def run(file, mean_model, gp_model, output, settings):
 		f.write("{:>7}".format(filename) + "".join(["{:>9.3f}{:>8.3f}{:>8.3f}".format(median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)]) + "\n") 
 		f.close()
 
+	if settings.diamonds_settings:
+		output_path = '{}/{}/model1.out'.format(os.getcwd(), os.path.dirname(file))
+		if os.path.exists(output_path):
+			header = False
+		else: 
+			header = True
+		f = open(output_path, 'a+')
+		if header:
+			f.write("# {:>5}".format("Run") + "".join(["{:>9}{:>8}".format(names[i], "Std") for i in range(median.size)]) + "\n")
+		f.write("{:>7}".format(filename) + "".join(["{:>9.3f}{:>8.3f}".format(median[i], (abs(median[i]-sigma_minus[i]) + abs(sigma_plus[i]-median[i])) / 2) for i in range(median.size)]) + "\n") 
+		f.close()
+
 	#------------------------------------------------------------------
 	#	PLOTS  -  FIX ABSOLUTE PATHS
 	#------------------------------------------------------------------
@@ -155,10 +167,10 @@ def run(file, mean_model, gp_model, output, settings):
 		gp_plot = plot.plot_gp(model, data, settings)
 	if settings.plot_corner:
 		corner_plot = plot.plot_corner(model, samples, settings)
-		corner_plot.savefig('{}/{}_corner.png'.format(os.path.dirname(file), filename), dpi=300)
+		corner_plot.savefig('{}/{}_corner.pdf'.format(os.path.dirname(file), filename))
 	if settings.plot_psd:
 		psd_plot = plot.plot_psd(model, data, settings, parseval_norm=True)
-		psd_plot.savefig('{}/{}_psd.png'.format(os.path.dirname(file), filename), dpi=300)
+		psd_plot.savefig('{}/{}_psd.pdf'.format(os.path.dirname(file), filename))
 	if settings.plots:
 		if settings.show_plots:
 			plt.show()

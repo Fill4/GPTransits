@@ -19,6 +19,7 @@ class Settings(object):
 		
 		self.tess_settings = False
 		self.raw_data_settings = False
+		self.diamonds_settings = False
 
 	@property
 	def plots(self):
