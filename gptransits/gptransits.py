@@ -167,10 +167,10 @@ def run(file, mean_model, gp_model, output, settings):
 		gp_plot = plot.plot_gp(model, data, settings)
 	if settings.plot_corner:
 		corner_plot = plot.plot_corner(model, samples, settings)
-		corner_plot.savefig('{}/{}_corner.pdf'.format(os.path.dirname(file), filename))
+		corner_plot.savefig('{}/{}/{}_corner.pdf'.format(os.getcwd(), os.path.dirname(file), filename))
 	if settings.plot_psd:
 		psd_plot = plot.plot_psd(model, data, settings, parseval_norm=True)
-		psd_plot.savefig('{}/{}_psd.pdf'.format(os.path.dirname(file), filename))
+		psd_plot.savefig('{}/{}/{}_psd.pdf'.format(os.getcwd(), os.path.dirname(file), filename))
 	if settings.plots:
 		if settings.show_plots:
 			plt.show()
