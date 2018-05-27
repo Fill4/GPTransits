@@ -40,7 +40,7 @@ class Component(object):
 	def get_kernel(self):
 		raise NotImplementedError
 	
-	def get_psd(self, freq):
+	def get_psd(self, freq, npoints):
 		kernel = self.get_kernel()
 		power = kernel.get_psd(2*np.pi*freq) * 2 * np.sqrt(2*np.pi)
 		return (self.name, power)
