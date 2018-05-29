@@ -63,10 +63,6 @@ def plot_psd(model, data, settings, include_data=True, parseval_norm=False):
 	
 	ax.loglog(freq, nobump_power, ls='--', color='r', label='Model without gaussian')
 	ax.loglog(freq, full_power, ls='-', color='k', label='Full Model')
-
-	if settings.tess_settings:
-		ax.set_xlim([1, 300])
-		ax.set_ylim([0.01, 4000])
 	
 	# ax.set_title('KIC012008916')
 	ax.set_xlabel(r'Frequency [$\mu$Hz]',fontsize="large")

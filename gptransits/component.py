@@ -40,10 +40,10 @@ class Component(object):
 	def get_kernel(self):
 		raise NotImplementedError
 	
-	def get_psd(self, freq, npoints):
+	def get_psd(self, freq, N, nyquist):
 		kernel = self.get_kernel()
-		power = kernel.get_psd(2*np.pi*freq) * 2 * np.sqrt(2*np.pi)
-		return (self.name, power)
+		power_list = kernel.get_psd(2*np.pi*freq) * 2 * np.sqrt(2*np.pi)
+		return (self.name, power_list)
 		
 
 class Granulation(Component):
@@ -141,11 +141,17 @@ class WhiteNoise(Component):
 		# kernel = celerite.terms.JitterTerm(log_sigma=np.log(jitter))
 		return kernel
 
-	def get_psd(self, freq, npoints):
+	def get_psd(self, freq, N, nyquist):
 		jitter, = self.parameter_array
-		# Return the jitter determined using the sigma^2 value divided by N points
-		# return (self.name, np.full(freq.size, jitter**2 / npoints))
-		# Return the jitter using sigma^2 / N points multiplied by the parseval constant
-		return (self.name, np.full(freq.size, jitter**2 * (2*np.sqrt(2*np.pi)) / npoints))
-		# Return the jitter parameter (sigma)
+
+		# PSD = sigma^2 / N points
+		# return (self.name, np.full(freq.size, jitter**2 / N))
+		
+		# PSD = sigma^2 / N points x Parseval normalization constant (2 x sqrt(2 x pi))
+		# return (self.name, np.full(freq.size, jitter**2 * (2*np.sqrt(2*np.pi)) / N))
+		
+		# PSD = sigma
 		# return (self.name, np.full(freq.size, jitter))
+
+		# PSD = sigma^2 x 2 x cadence / 10^6        # [ 1 / nyquist = 10^6 / (2 x cadence) ]
+		return (self.name, np.full(freq.size, jitter**2 / nyquist))

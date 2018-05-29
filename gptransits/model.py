@@ -1,5 +1,6 @@
 import numpy as np
 import celerite
+import sys
 from .component import Component
 
 # TODO
@@ -31,6 +32,8 @@ class Model(object):
 
 		if isinstance(gp_model, GPModel):
 			self.gp_model = gp_model
+			self.gp_model.time = self.time
+
 			if hasattr(self, 'error'):
 				self.gp = GP(self.gp_model, self.time, self.error)
 			else:
@@ -123,12 +126,22 @@ class GPModel(object):
 			kernel += component.get_kernel()
 		return kernel
 
-	def get_psd(self, time):
-		nyquist = 1e6 / (2 * (time[1] - time[0]))
-		f_sampling = 1 / (27.4*24*3600 / 1e6)
+	def get_psd(self, time = None):
+		if time is None:
+			try:
+				time = self.time
+			except AttributeError:
+				sys.exit("No time variable present in object")
+
+		cadence = time[1] - time[0]
+		nyquist = 1e6 / (2 * cadence)
+
+		time_span = time[-1] - time[0]
+		f_sampling = 1 / (time_span / 1e6)
+
 		freq = np.linspace(0.0, nyquist, (nyquist/f_sampling)+1)
 
-		psd_dict = [component.get_psd(freq, time.size) for component in self.component_array]
+		psd_dict = [component.get_psd(freq, time.size, nyquist) for component in self.component_array]
 		return [freq, psd_dict]
 
 	def get_kernel_list(self):

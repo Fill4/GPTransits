@@ -13,7 +13,7 @@ def run_mcmc(model, settings):
 	init_params = model.gp.gp_model.prior_sample(settings.nwalkers) # Should be replaced with model.prior_sample(nwalkers) after MeanModel is implemented
 	ndim = init_params.shape[1]
 
-	# Instanciate the sampler. Parameters arg is added by samples to log_likelihood function
+	# Instanciate the sampler. Parameters for likelihhood calculation are included in model object
 	sampler = emcee.EnsembleSampler(settings.nwalkers, ndim, model.log_likelihood)
 
 	# Burn-in
@@ -25,11 +25,9 @@ def run_mcmc(model, settings):
 	# Main run
 	logging.info('Running MCMC ...')
 	results, _, _ = sampler.run_mcmc(burnin_params, settings.iterations, progress=progress_bool)
-	#logging.info("Acceptance fraction of walkers:")
-	#logging.info(sampler.acceptance_fraction)
 
 	time_mcmc = timeit.default_timer() - init_time_mcmc
-	logging.info("MCMC execution time: {:.4f} usec".format(time_mcmc))
+	logging.info("MCMC execution time: {:.4f} usec\n".format(time_mcmc))
 	
 	# Get the samples from the MCMC run and calculate the median and 1-sigma uncertainties
 	samples = sampler.flatchain

@@ -81,10 +81,8 @@ def run(file, mean_model, gp_model, output, settings):
 		except FileNotFoundError:
 			logging.error("Couldn't open file: " + file)
 			sys.exit(1)
-	model = Model(mean_model, gp_model, data, include_errors=settings.include_errors)
 
-	# Run Minimizationn
-	#backend.run_minimization(data, priors, plot=plot)
+	model = Model(mean_model, gp_model, data, include_errors=settings.include_errors)
 
 	# Run MCMC
 	samples, results = mcmc.run_mcmc(model, settings)
@@ -167,10 +165,10 @@ def run(file, mean_model, gp_model, output, settings):
 		gp_plot = plot.plot_gp(model, data, settings)
 	if settings.plot_corner:
 		corner_plot = plot.plot_corner(model, samples, settings)
-		corner_plot.savefig('{}/{}_m2_err_corner.pdf'.format(os.path.dirname(file), filename))
+		corner_plot.savefig('{}/{}_corner.pdf'.format(os.path.dirname(file), filename))
 	if settings.plot_psd:
 		psd_plot = plot.plot_psd(model, data, settings, parseval_norm=True)
-		psd_plot.savefig('{}/{}_m2_err_psd.pdf'.format(os.path.dirname(file), filename))
+		psd_plot.savefig('{}/{}_psd.pdf'.format(os.path.dirname(file), filename))
 	if settings.plots:
 		if settings.show_plots:
 			plt.show()
@@ -178,4 +176,4 @@ def run(file, mean_model, gp_model, output, settings):
 
 	# Print execution time
 	execution_time_star = timeit.default_timer() - init_star_time
-	logging.info("{:} elapsed time: {:.4f} usec".format(filename, execution_time_star))
+	logging.info("{:} elapsed time: {:.4f} usec\n".format(filename, execution_time_star))
