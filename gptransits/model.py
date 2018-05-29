@@ -124,7 +124,7 @@ class GPModel(object):
 		return kernel
 
 	def get_psd(self, time):
-		nyquist = (1 / (2*(time[1]-time[0]))) * 1e6
+		nyquist = 1e6 / (2 * (time[1] - time[0]))
 		f_sampling = 1 / (27.4*24*3600 / 1e6)
 		freq = np.linspace(0.0, nyquist, (nyquist/f_sampling)+1)
 

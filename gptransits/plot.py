@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import corner
 from astropy.stats import LombScargle
+from astropy.convolution import convolve, Box1DKernel
 from scipy.signal import medfilt
 
 def plot_corner(model, samples, settings):
@@ -86,7 +87,9 @@ def plot_psd(model, data, settings, include_data=True, parseval_norm=False):
 			# Celerite Normalization
 			power = power / model.time.size
 
-		ax.loglog(freq2, medfilt(power, 5), color='k', alpha=0.4)
+		ax.loglog(freq2, power, 5, color='k', alpha=0.4)
+		# ax.loglog(freq2, medfilt(power, 5), color='k', alpha=0.4)
+		ax.loglog(freq2, convolve(power, Box1DKernel(10)), color='k', alpha=0.4)
 	
 	ax.legend(fontsize="large", loc="lower left")
 

@@ -81,7 +81,7 @@ def run(file, mean_model, gp_model, output, settings):
 		except FileNotFoundError:
 			logging.error("Couldn't open file: " + file)
 			sys.exit(1)
-	model = Model(mean_model, gp_model, data, include_errors=True)
+	model = Model(mean_model, gp_model, data, include_errors=settings.include_errors)
 
 	# Run Minimizationn
 	#backend.run_minimization(data, priors, plot=plot)

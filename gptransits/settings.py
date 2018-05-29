@@ -7,7 +7,7 @@ class Settings(object):
 		self.output_file = None
 
 		self.verbose = False
-
+		self.include_errors = False
 
 		self.burnin = 500
 		self.iterations = 2000
