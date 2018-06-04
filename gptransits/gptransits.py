@@ -145,7 +145,7 @@ def run(file, mean_model, gp_model, output, settings):
 		f.close()
 
 	if settings.diamonds_settings:
-		output_path = '{}/model2_err.out'.format(os.path.dirname(file))
+		output_path = '{}/model2.out'.format(os.path.dirname(file))
 		if os.path.exists(output_path):
 			header = False
 		else: 

@@ -4,7 +4,6 @@ import timeit
 import logging
 import sys
 
-# def mcmc(data, gp, nwalkers=20, iterations=2000, burnin=500):
 def run_mcmc(model, settings):
 
 	init_time_mcmc = timeit.default_timer()
