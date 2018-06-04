@@ -13,6 +13,9 @@ class Settings(object):
 		self.iterations = 2000
 		self.nwalkers = 20
 		
+		self.show_plots = False
+		self.save_plots = True
+
 		self.plot_gp = False
 		self.plot_corner = False
 		self.plot_psd = False

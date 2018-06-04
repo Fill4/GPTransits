@@ -85,8 +85,10 @@ def plot_psd(model, data, settings, include_data=True, parseval_norm=False):
 
 		ax.loglog(freq2, power, 5, color='k', alpha=0.4)
 		# ax.loglog(freq2, medfilt(power, 5), color='k', alpha=0.4)
-		ax.loglog(freq2, convolve(power, Box1DKernel(10)), color='k', alpha=0.4)
+		ax.loglog(freq2, convolve(power, Box1DKernel(10)), color='k', alpha=0.6)
 	
+	ax.set_xlim([1,300])
+	ax.set_ylim([1e-1, 1e4])
 	ax.legend(fontsize="large", loc="lower left")
 
 	return psd_plot
