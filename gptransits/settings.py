@@ -9,7 +9,7 @@ class Settings(object):
 		self.verbose = False
 		self.include_errors = False
 
-		self.burnin = 500
+		self.burnin = 800
 		self.iterations = 2000
 		self.nwalkers = 20
 		

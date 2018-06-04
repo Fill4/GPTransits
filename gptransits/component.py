@@ -52,7 +52,7 @@ class Granulation(Component):
 	parameter_names = ['a_gran', 'b_gran']
 	parameter_latex_names = [r'$a_{gran}$', r'$b_{gran}$']
 	parameter_units = ['ppm', r'$\mu$Hz']
-	default_prior = np.array([[20, 300], [10, 200]])
+	default_prior = np.array([[20, 400], [10, 200]])
 
 	def __repr__(self):
 		return '{0} ({names[0]}:{values[0]:.3f} {units[0]}, {names[1]}:{values[1]:.3f} {units[1]})'.format(self.name, 
@@ -90,7 +90,7 @@ class OscillationBump(Component):
 	parameter_names = ['P_g', 'Q', 'nu_max']
 	parameter_latex_names = [r'$P_{g}$', r'$Q_{bump}$', r'$\nu_{max}$']
 	parameter_units = ['ppm', '', r'$\mu$Hz']
-	default_prior = np.array([[10, 600], [1.2, 10], [100, 250]])
+	default_prior = np.array([[10, 800], [1.2, 10], [100, 250]])
 
 	def __repr__(self):
 		return '{0}({names[0]}:{values[0]:.3f} {units[0]}, {names[1]}:{values[1]:.3f} {units[1]}, {names[2]}:{values[2]:.3f} {units[2]})'.format(self.name, 
