@@ -110,7 +110,7 @@ def run(file, mean_model, gp_model, output, settings):
 		output_buffer = "# {:}: {:}\n".format("Filename", filename)
 		output_buffer += "# {:>10}{:>12}{:>10}{:>10}\n".format("Parameter", "Median", "-Std", "+Std")
 
-		output_buffer += ''.join(["  {:>10}{:>12.4f}{:>10.4f}{:>10.4f}\n".format(names[i], median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)])
+		output_buffer += ''.join(["  {:>10}{:>12.4f}{:>10.4f}{:>10.4f}\n".format(names[i][:9], median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)])
 
 		# output_buffer += "  {:>10}{:>12.4f}\n".format("Std LC", np.std(model.flux))
 		output_buffer += '# --------------------------------------------------------------------------\n'
@@ -122,11 +122,11 @@ def run(file, mean_model, gp_model, output, settings):
 	if any([settings.tess_settings, settings.raw_data_settings, settings.diamonds_settings]):
 		# Extra lines for simulated data
 		if settings.tess_settings:
-			output_path = '{}/results_model1.dat'.format(os.path.dirname(file))
+			output_path = '{}/model2.out'.format(os.path.dirname(file))
 		elif settings.raw_data_settings:
 			output_path = '{}/tess_artificial_data/full_lc_model1.out'.format(os.getcwd())
 		elif settings.diamonds_settings:
-			output_path = '{}/model1_prior.out'.format(os.path.dirname(file))
+			output_path = '{}/model2.out'.format(os.path.dirname(file))
 			
 		if os.path.exists(output_path):
 			header = False
@@ -135,8 +135,8 @@ def run(file, mean_model, gp_model, output, settings):
 		f = open(output_path, 'a+')
 
 		if header:
-			f.write("# {:>5}".format("Run") + "".join(["{:>9}{:>8}{:>8}".format(names[i], "-Std", "+Std") for i in range(median.size)]) + "\n")
-		f.write("{:>7}".format(filename) + "".join(["{:>9.3f}{:>8.3f}{:>8.3f}".format(median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)]) + "\n") 
+			f.write("# {:>6}".format("Run") + "".join(["{:>9}{:>8}{:>8}".format(names[i], "-Std", "+Std") for i in range(median.size)]) + "\n")
+		f.write("{:>8}".format(filename[:8]) + "".join(["{:>9.3f}{:>8.3f}{:>8.3f}".format(median[i], median[i]-sigma_minus[i], sigma_plus[i]-median[i]) for i in range(median.size)]) + "\n") 
 		f.close()
 
 	#------------------------------------------------------------------
@@ -145,15 +145,18 @@ def run(file, mean_model, gp_model, output, settings):
 	
 	plt.close('all')
 	if settings.plot_gp:
-		gp_plot = plot.plot_gp(model, data, settings)
+		gp_plot, zoom_plot = plot.plot_gp(model, data, settings)
+		if settings.save_plots:
+			gp_plot.savefig('{}/{}_gp.pdf'.format(os.path.dirname(file), filename))
+			zoom_plot.savefig('{}/{}_gp_zoom.pdf'.format(os.path.dirname(file), filename))
 	if settings.plot_corner:
 		corner_plot = plot.plot_corner(model, samples, settings)
 		if settings.save_plots:
-			corner_plot.savefig('{}/{}_model1_prior_corner.pdf'.format(os.path.dirname(file), filename))
+			corner_plot.savefig('{}/{}_corner.pdf'.format(os.path.dirname(file), filename))
 	if settings.plot_psd:
 		psd_plot = plot.plot_psd(model, data, settings, parseval_norm=True)
 		if settings.save_plots:
-			psd_plot.savefig('{}/{}_model1_prior_psd.pdf'.format(os.path.dirname(file), filename))
+			psd_plot.savefig('{}/{}_psd.pdf'.format(os.path.dirname(file), filename))
 	if settings.plots:
 		if settings.show_plots:
 			plt.show()
