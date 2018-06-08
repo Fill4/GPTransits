@@ -6,7 +6,7 @@ gaussian processes to fit the remaining stochastic noise
 import numpy as np
 import matplotlib.pyplot as plt
 import timeit
-import sys, os
+import os
 import argparse
 import logging
 
@@ -80,7 +80,7 @@ def run(file, mean_model, gp_model, output, settings):
 			data = np.loadtxt(file, unpack=True)
 		except FileNotFoundError:
 			logging.error("Couldn't open file: " + file)
-			sys.exit(1)
+			raise FileNotFoundError("Could not open file: " + file)
 
 	model = Model(mean_model, gp_model, data, include_errors=settings.include_errors)
 

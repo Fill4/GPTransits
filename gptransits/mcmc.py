@@ -2,7 +2,6 @@ import numpy as np
 import emcee
 import timeit
 import logging
-import sys
 
 def run_mcmc(model, settings):
 

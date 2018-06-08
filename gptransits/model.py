@@ -1,6 +1,5 @@
 import numpy as np
 import celerite
-import sys
 from .component import Component
 
 # TODO
@@ -10,20 +9,16 @@ class Model(object):
 	
 	def __init__(self, mean_model, gp_model, data, include_errors=False):
 		# If include errors try to get all data from data array
-		if include_errors:
-			try:
-				self.time, self.flux, self.error = data
-			except ValueError:
-				print("Data needs to have errors to include them")
-		# If not include errors, handle their possible existence in data without making the attribute			
-		else:
-			try:
-				self.time, self.flux = data
-			except ValueError:
+		try: 
+			self.time, self.flux, self.error = data
+		except ValueError:
+			if include_errors:
+				raise ValueError("Data needs to have errors to include them")
+			else:
 				try:
-					self.time, self.flux, _ = data
+					self.time, self.flux = data
 				except ValueError:
-					print("Data needs to have at least time and flux arrays")
+					raise ValueError("Data file needs to have at least time and flux columns")
 
 		if isinstance(mean_model, MeanModel):
 			self.mean_model = mean_model
@@ -34,7 +29,7 @@ class Model(object):
 			self.gp_model = gp_model
 			self.gp_model.time = self.time
 
-			if hasattr(self, 'error'):
+			if include_errors:
 				self.gp = GP(self.gp_model, self.time, self.error)
 			else:
 				self.gp = GP(self.gp_model, self.time)
@@ -131,7 +126,7 @@ class GPModel(object):
 			try:
 				time = self.time
 			except AttributeError:
-				sys.exit("No time variable present in object")
+				raise AttributeError("No time variable present in object")
 
 		cadence = time[1] - time[0]
 		nyquist = 1e6 / (2 * cadence)
