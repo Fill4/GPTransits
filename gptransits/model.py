@@ -25,6 +25,8 @@ class Model(object):
 		else:
 			raise ValueError("First argument must be of type MeanModel")
 
+		self.time -= self.time[0]
+
 		if isinstance(gp_model, GPModel):
 			self.gp_model = gp_model
 			self.gp_model.time = self.time

@@ -19,6 +19,8 @@ class Settings(object):
 		self.plot_gp = False
 		self.plot_corner = False
 		self.plot_psd = False
+
+		self.fontsize = 16
 		
 		self.tess_settings = False
 		self.raw_data_settings = False
