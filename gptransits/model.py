@@ -22,6 +22,7 @@ class Model(object):
 
 		if isinstance(mean_model, MeanModel):
 			self.mean_model = mean_model
+			self.mean_model.initialize_model(self.time)
 		else:
 			raise ValueError("First argument must be of type MeanModel")
 
@@ -38,14 +39,36 @@ class Model(object):
 		else:
 			raise ValueError("Second argument must be of type GPModel")
 
+	def set_parameters(self, params):
+		self.mean_model.set_parameters(params[:self.mean_model.npars])
+		self.gp.gp_model.set_parameters(params[self.mean_model.npars:])
+
+	def get_parameters(self):
+		return np.hstack((self.mean_model.get_parameters(), self.gp.gp_model.get_parameters()))
+
+	def get_parameters_names(self):
+		return np.hstack((self.mean_model.get_parameters_names(), self.gp.gp_model.get_parameters_names()))
+
+	def get_parameters_latex(self):
+		return np.hstack((self.mean_model.get_parameters_latex(), self.gp.gp_model.get_parameters_latex()))
+
+	def sample_prior(self, num=1):
+		return np.hstack((self.mean_model.sample_prior(num), self.gp.gp_model.sample_prior(num)))
+
+	def evaluate_prior(self):
+		mean_prior = self.mean_model.evaluate_prior()
+		gp_prior = self.gp.gp_model.evaluate_prior()
+		
+		return mean_prior + gp_prior
+
 	def log_likelihood(self, params):
-		self.gp.gp_model.set_parameters(params)
-		lnprior = self.gp.gp_model.prior_evaluate()
+		self.set_parameters(params)
+		lnprior = self.evaluate_prior()
 		if not np.isfinite(lnprior):
 			return -np.inf
-		self.gp.set_parameters()
+		self.gp.update_parameters()
 
-		lnlikelihood = self.gp.log_likelihood(self.flux - self.mean_model.eval(params, self.time, self.flux))
+		lnlikelihood = self.gp.log_likelihood(self.flux - self.mean_model.eval())
 		
 		return lnprior + lnlikelihood
 
@@ -53,9 +76,33 @@ class Model(object):
 # TODO
 # Parametric model of the data that has a defined functional form
 class MeanModel(object):
-	
-	def eval(self, params, time, flux):
+
+	def __init__(self):
+		self.npars = 0
+
+	def get_parameters(self):
+		return np.array([])
+
+	def get_parameters_names(self):
+		return np.array([])
+
+	def get_parameters_latex(self):
+		return np.array([])
+
+	def set_parameters(self, params):
+		pass
+
+	def initialize_model(self, time):
+		self.time = time
+
+	def sample_prior(self, num=1):
+		return np.array([]).reshape(num, 0)
+
+	def evaluate_prior(self):
 		return 0
+
+	def eval(self):
+		return np.zeros(self.time.size)
 
 # Model that contains the components of the GP. Might be joined with GP in the future.
 class GPModel(object):
@@ -108,13 +155,11 @@ class GPModel(object):
 		return np.hstack([component.parameter_names for component in self.component_array])
 
 
-	def prior_evaluate(self):
+	def evaluate_prior(self):
 		prior = sum([component.eval_prior() for component in self.component_array])
-		if not np.isfinite(prior):
-			return -np.inf
 		return prior
 
-	def prior_sample(self, num=1):
+	def sample_prior(self, num=1):
 		return np.hstack([component.sample_prior(num) for component in self.component_array])
 
 	def get_kernel(self):
@@ -123,7 +168,7 @@ class GPModel(object):
 			kernel += component.get_kernel()
 		return kernel
 
-	def get_psd(self, time = None):
+	def get_psd(self, time=None, min_freq=0.0):
 		if time is None:
 			try:
 				time = self.time
@@ -136,7 +181,7 @@ class GPModel(object):
 		time_span = time[-1] - time[0]
 		f_sampling = 1 / (time_span / 1e6)
 
-		freq = np.linspace(0.0, nyquist, (nyquist/f_sampling)+1)
+		freq = np.linspace(min_freq, nyquist, ((nyquist-min_freq)/f_sampling)+1)
 
 		psd_dict = [component.get_psd(freq, time.size, nyquist) for component in self.component_array]
 		return [freq, psd_dict]
@@ -154,7 +199,7 @@ class GP(object):
 		self.gp = celerite.GP(self.gp_model.get_kernel())
 		self.gp.compute(time/1e6, yerr=error)
 
-	def set_parameters(self):
+	def update_parameters(self):
 		celerite_params = self.gp_model.get_parameters_celerite()
 		self.gp.set_parameter_vector(celerite_params)
 

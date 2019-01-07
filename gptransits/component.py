@@ -14,7 +14,7 @@ class Component(object):
 			self.prior_settings = np.array(kwargs.get('prior'))
 		else:
 			self.prior_settings = self.default_prior
-		self.setup_prior()
+		self.setup_priors()
 
 		if len(args):
 			if len(args) != self.npars:
@@ -23,7 +23,7 @@ class Component(object):
 		else:
 			self.parameter_array = self.sample_prior()[0]
 
-	def setup_prior(self):
+	def setup_priors(self):
 		means = [prior[0] for prior in self.prior_settings]
 		stds = [prior[1]-prior[0] for prior in self.prior_settings]
 		self.priors = uniform(means, stds)

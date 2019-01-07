@@ -22,6 +22,7 @@ class Settings(object):
 
 		self.fontsize = 16
 		
+		self.model = None
 		self.tess_settings = False
 		self.raw_data_settings = False
 		self.diamonds_settings = False

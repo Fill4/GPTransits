@@ -8,7 +8,7 @@ def run_mcmc(model, settings):
 	init_time_mcmc = timeit.default_timer()
 	
 	# Draw samples from the prior distributions to have initial values for all the walkers
-	init_params = model.gp.gp_model.prior_sample(settings.nwalkers) # Should be replaced with model.prior_sample(nwalkers) after MeanModel is implemented
+	init_params = model.sample_prior(settings.nwalkers) # Should be replaced with model.prior_sample(nwalkers) after MeanModel is implemented
 	ndim = init_params.shape[1]
 
 	# Instanciate the sampler. Parameters for likelihhood calculation are included in model object
@@ -29,6 +29,6 @@ def run_mcmc(model, settings):
 	
 	# Get the samples from the MCMC run and calculate the median and 1-sigma uncertainties
 	samples = sampler.flatchain
-	results = np.percentile(samples.T, [16,50,84], axis=1)
+	results = np.percentile(samples.T, [1,16,50,84,99], axis=1)
 
 	return samples, results

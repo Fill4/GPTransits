@@ -90,9 +90,6 @@ ENV/
 
 
 
-# Ignore giant results folder
-gptransits/tess_artificial_data/raw_data
-gptransits/tess_data_simulator
-gptransits/results
+# Ignore editor settings folders
 .vs
 .vscode

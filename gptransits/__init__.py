@@ -1,8 +1,10 @@
-__all__ = ["OscillationBump", "Granulation", "WhiteNoise", "GPModel", "MeanModel", "Settings", "gptransits"]
+__all__ = ["OscillationBump", "Granulation", "WhiteNoise", "GPModel", "MeanModel", "Transit", "Settings", "gptransits"]
 
 from .component import OscillationBump, Granulation, WhiteNoise
 from .model import GPModel, MeanModel
+from .transit import Transit
 from .settings import Settings
 
-from .gptransits import *
+
 # import gptransits
+from .gptransits import *
