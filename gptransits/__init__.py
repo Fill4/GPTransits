@@ -1,10 +1,10 @@
-__all__ = ["OscillationBump", "Granulation", "WhiteNoise", "GPModel", "MeanModel", "Transit", "Settings", "gptransits"]
 
-from .component import OscillationBump, Granulation, WhiteNoise
-from .model import GPModel, MeanModel
-from .transit import Transit
-from .settings import Settings
+__version__ = 0.3
 
+from .model import Model
+from.settings import Settings
+from .helper import analyse
 
-# import gptransits
-from .gptransits import *
+# Analysis is still not working with the default settings
+# Should be a class that recieves a model and analyses all the data
+__all__ = [Model, Settings, analyse]

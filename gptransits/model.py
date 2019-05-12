@@ -1,210 +1,189 @@
+#!/usr/bin/env python3
+"""
+Fits a transit model together with a Gaussian Process model created by celerite to lightcurve observations
+"""
+
+import sys
+import copy
+import pickle
+from pathlib import Path
+import logging
+import argparse
+import importlib
+
 import numpy as np
+import matplotlib.pyplot as plt
+import emcee
 import celerite
-from .component import Component
+from multiprocessing.pool import Pool
 
-# TODO
-# Class to implement the logic to integrate both MeanModel and GPModel in the same container
-# Purpose is to abstract the logic of the likelihood calculation when dealing with parameters of both models together
-class Model(object):
-	
-	def __init__(self, mean_model, gp_model, data, include_errors=False):
-		# If include errors try to get all data from data array
-		try: 
-			self.time, self.flux, self.error = data
-		except ValueError:
-			if include_errors:
-				raise ValueError("Data needs to have errors to include them")
-			else:
-				try:
-					self.time, self.flux = data
-				except ValueError:
-					raise ValueError("Data file needs to have at least time and flux columns")
+# local imports
+from .transit import BatmanModel
+from .gp import GPModel
+from .settings import Settings
 
-		if isinstance(mean_model, MeanModel):
-			self.mean_model = mean_model
-			self.mean_model.initialize_model(self.time)
-		else:
-			raise ValueError("First argument must be of type MeanModel")
+__all__ = ["Model"]
 
-		self.time -= self.time[0]
+class Model():
+    lc_file = None
+    config_file = None
+    config = None
+    settings = None
 
-		if isinstance(gp_model, GPModel):
-			self.gp_model = gp_model
-			self.gp_model.time = self.time
+    # Add these variables as class variables to make them global for multithreading.Pool
+    time = None
+    flux = None
+    flux_err = None
 
-			if include_errors:
-				self.gp = GP(self.gp_model, self.time, self.error)
-			else:
-				self.gp = GP(self.gp_model, self.time)
-		else:
-			raise ValueError("Second argument must be of type GPModel")
+    mean_model = None
+    mean_model_ndim = 0
+    has_mean_model = False
 
-	def set_parameters(self, params):
-		self.mean_model.set_parameters(params[:self.mean_model.npars])
-		self.gp.gp_model.set_parameters(params[self.mean_model.npars:])
+    gp_model = None
+    gp_model_ndim = 0
+    gp = None
 
-	def get_parameters(self):
-		return np.hstack((self.mean_model.get_parameters(), self.gp.gp_model.get_parameters()))
+    @classmethod
+    def __init__(cls, lc_file, config_file):
+        cls.lc_file = Path(lc_file)
+        cls.config_file = Path(config_file)
 
-	def get_parameters_names(self):
-		return np.hstack((self.mean_model.get_parameters_names(), self.gp.gp_model.get_parameters_names()))
+        # Get config from file
+        try:
+            spec = importlib.util.spec_from_file_location("config", cls.config_file)
+            cls.config = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(cls.config)
+        except Exception:
+            logging.exception(f"ERROR: Couldn't import {cls.config_file.stem}")
+            sys.exit(1)
+        sys.modules["config"] = cls.config
 
-	def get_parameters_latex(self):
-		return np.hstack((self.mean_model.get_parameters_latex(), self.gp.gp_model.get_parameters_latex()))
+        if hasattr(cls.config, "settings"):
+            cls.settings = cls.config.settings
+        else:
+            cls.settings = Settings()
+        
+        # Setup logging according to args
+        if cls.settings.log_to_file:
+            logging.basicConfig(format='%(levelname)s: %(message)s', filename="log.txt", filemode="w", level=cls.settings.log_level)
+        else:
+            logging.basicConfig(format='%(levelname)s: %(message)s', level=cls.settings.log_level)
 
-	def sample_prior(self, num=1):
-		return np.hstack((self.mean_model.sample_prior(num), self.gp.gp_model.sample_prior(num)))
+        # Set random state early to control the initial random sample and also emcee iterations
+        np.random.seed(cls.settings.seed)
 
-	def evaluate_prior(self):
-		mean_prior = self.mean_model.evaluate_prior()
-		gp_prior = self.gp.gp_model.evaluate_prior()
-		
-		return mean_prior + gp_prior
+    # Defines the likelihood function for emcee. Classmethod (global) to allow for multithreading
+    @classmethod
+    def log_likelihood(cls, params):
+        gp_lnprior = cls.gp_model.lnprior(params[:cls.gp_model_ndim])
+        if cls.has_mean_model:
+            mean_lnprior = cls.mean_model.lnprior(params[cls.gp_model_ndim:])
+        else:
+            mean_lnprior = 0
+        if not (np.isfinite(gp_lnprior) and np.isfinite(mean_lnprior)):
+            return -np.inf
+        
+        # Convert params to celerite model and update gp object
+        gp_params = cls.gp_model.get_parameters_celerite(params[:cls.gp_model_ndim])
+        cls.gp.set_parameter_vector(gp_params)
 
-	def log_likelihood(self, params):
-		self.set_parameters(params)
-		lnprior = self.evaluate_prior()
-		if not np.isfinite(lnprior):
-			return -np.inf
-		self.gp.update_parameters()
+        if cls.has_mean_model:
+            lnlikelihood = cls.gp.log_likelihood(cls.flux - cls.mean_model.get_value(params[cls.gp_model_ndim:]))
+        else:
+            lnlikelihood = cls.gp.log_likelihood(cls.flux)
+            
+        # return mean_lnprior + gp_lnprior + lnlikelihood
+        return gp_lnprior + lnlikelihood
+    
+    @classmethod
+    def run(cls):
+        # Read data from file
+        logging.info(f'Working in directory: {cls.lc_file.parent.resolve()}')
+        logging.info(f'Reading data from: {cls.lc_file.name}')
+        try:
+            time, flux, flux_err = np.loadtxt(cls.lc_file, unpack=True)
+        except ValueError:
+            try:
+                time, flux = np.loadtxt(cls.lc_file, unpack=True)
+            except ValueError:
+                logging.error(f"Error: Couldn't load data from the lc_file: {cls.lc_file}")
+                sys.exit(1)
+        if cls.settings.include_errors:
+            if flux_err is None:
+                logging.error(f"Error: Need a flux_err column when include_errors is True")
+                sys.exit(1)
 
-		lnlikelihood = self.gp.log_likelihood(self.flux - self.mean_model.eval())
-		
-		return lnprior + lnlikelihood
+        # Convert time to days and flux and err to ppm (if needed). Make copy to separate memory of arrays for C
+        cls.time = time.copy()                    # keep days
+        # cls.time = time.copy() / (24.*3600.)        # seconds to days
+        # cls.flux = flux.copy()                      # keep ppm
+        cls.flux = (flux.copy() - 1.0) * 1e6      # frac to ppm
+        if cls.settings.include_errors:
+            # cls.flux_err = flux_err.copy()          # keep ppm
+            cls.flux_err = flux_err.copy() * 1e6  # frac to ppm
 
+        # Setup a transit model if there is configs in file ,otherwise setup empty params
+        if hasattr(cls.config, "transit"):
+            cls.mean_model = BatmanModel(cls.config.transit["name"], cls.config.transit["params"])
+            cls.mean_model.init_model(cls.time, cls.time[1]-cls.time[0], 2)
+            cls.mean_model_ndim = cls.mean_model.npars
+            cls.has_mean_model = True
 
-# TODO
-# Parametric model of the data that has a defined functional form
-class MeanModel(object):
+        # Setup gp model. Create a setup_gp_model() function that reads in an external config file
+        cls.gp_model = GPModel(cls.config.gp)
+        kernel = cls.gp_model.get_kernel(cls.gp_model.sample_prior()[0])
+        cls.gp_model_ndim = kernel.get_parameter_vector().size
 
-	def __init__(self):
-		self.npars = 0
-
-	def get_parameters(self):
-		return np.array([])
-
-	def get_parameters_names(self):
-		return np.array([])
-
-	def get_parameters_latex(self):
-		return np.array([])
-
-	def set_parameters(self, params):
-		pass
-
-	def initialize_model(self, time):
-		self.time = time
-
-	def sample_prior(self, num=1):
-		return np.array([]).reshape(num, 0)
-
-	def evaluate_prior(self):
-		return 0
-
-	def eval(self):
-		return np.zeros(self.time.size)
-
-# Model that contains the components of the GP. Might be joined with GP in the future.
-class GPModel(object):
-	def __repr__(self):
-		string = 'Model with {0} components:\n'.format(len(self.component_array))
-		for component in self.component_array:
-			string += repr(component) + '\n'
-		return string
-
-	def	__init__(self, *args):
-		if len(args):
-			self.component_array = []
-			for arg in args:
-				if isinstance(arg, Component):
-					self.component_array.append(arg)
-				else:
-					raise ValueError("Args must be of type Component")
-		else:
-			raise ValueError("Model must have at least one component")
-
-	def add(self, *args):
-		if len(args):
-			for arg in args:
-				if isinstance(arg, Component):
-					self.component_array.append(arg)
-				else:
-					raise ValueError("Args must be of type Component")
-		else:
-			raise ValueError("Must add at least one component to model")
-
-	def set_parameters(self, params):
-		i = 0
-		for component in self.component_array:
-			component.parameter_array = params[i:i+component.npars]
-			i += component.npars
-
-	def get_parameters(self):
-		return np.hstack([component.parameter_array for component in self.component_array])
-
-	def get_parameters_celerite(self):
-		return np.hstack([component.get_parameters_celerite() for component in self.component_array])
-		
-	def get_parameters_names(self):
-		return np.hstack([component.parameter_names for component in self.component_array])
-
-	def get_parameters_latex(self):
-		return np.hstack([component.parameter_latex_names for component in self.component_array])
-
-	def get_parameters_units(self):
-		return np.hstack([component.parameter_names for component in self.component_array])
+        # Setup celerite gp with kernel. Time goes in microseconds for the muHz parameters in the GP
+        cls.gp = celerite.GP(kernel)
+        days_to_microsec = (24*3600) / 1e6
+        if cls.settings.include_errors:
+            cls.gp.compute(cls.time*days_to_microsec, yerr=cls.flux_err)
+        else:
+            cls.gp.compute(cls.time*days_to_microsec)
 
 
-	def evaluate_prior(self):
-		prior = sum([component.eval_prior() for component in self.component_array])
-		return prior
+        # -------------------- MCMC ----------------------------
+        # Setup mcmc
+        ndim = cls.gp_model_ndim + cls.mean_model_ndim
+        nwalkers =  ndim * 4
+        nsteps = cls.settings.num_steps
+        pool = Pool(cls.settings.num_threads)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, cls.log_likelihood, pool=pool)
 
-	def sample_prior(self, num=1):
-		return np.hstack([component.sample_prior(num) for component in self.component_array])
+        # Sample priors to get initial values for all walkers
+        init_gp_params = cls.gp_model.sample_prior(num=nwalkers)
+        if cls.mean_model is not None:
+            init_mean_params = cls.mean_model.sample_prior(num=nwalkers)
+            init_params = np.hstack([init_gp_params, init_mean_params])
+        else:
+            init_params = init_gp_params
 
-	def get_kernel(self):
-		kernel = celerite.terms.TermSum()
-		for component in self.component_array:
-			kernel += component.get_kernel()
-		return kernel
+        # Run mcmc
+        logging.info(f"Runnning MCMC on {cls.settings.num_threads} processes ...")
+        sampler.run_mcmc(init_params, nsteps, progress=True)
 
-	def get_psd(self, time=None, min_freq=0.0):
-		if time is None:
-			try:
-				time = self.time
-			except AttributeError:
-				raise AttributeError("No time variable present in object")
+        # Save data
+        if cls.settings.save:
+            # If there is no output folder, create it
+            if not (lc_file.parent / "output").is_dir():
+                Path.mkdir(lc_file.parent / "output")
 
-		cadence = time[1] - time[0]
-		nyquist = 1e6 / (2 * cadence)
+            logging.info(f"Saving chain")
+            with open(lc_file.parent / "output" / "chain.pk", "wb") as f:
+                pickle.dump(sampler.chain, f, protocol=-1)
 
-		time_span = time[-1] - time[0]
-		f_sampling = 1 / (time_span / 1e6)
+            logging.info(f"Saving lnprobability")
+            with open(lc_file.parent / "output" / "lnprobability.pk", "wb") as f:
+                pickle.dump(sampler.lnprobability, f, protocol=-1)
 
-		freq = np.linspace(min_freq, nyquist, ((nyquist-min_freq)/f_sampling)+1)
 
-		psd_dict = [component.get_psd(freq, time.size, nyquist) for component in self.component_array]
-		return [freq, psd_dict]
-
-	def get_kernel_list(self):
-		pass
-
-# Class that implements the GP methods of the GPModel and interfaces with celerite methods
-class GP(object):
-	def __init__(self, gp_model, time, error=1.123e-12): # yerr same as celerite
-		if isinstance(gp_model, GPModel):
-			self.gp_model = gp_model
-		else:
-			raise ValueError("model arg must be of type GPModel")
-		self.gp = celerite.GP(self.gp_model.get_kernel())
-		self.gp.compute(time/1e6, yerr=error)
-
-	def update_parameters(self):
-		celerite_params = self.gp_model.get_parameters_celerite()
-		self.gp.set_parameter_vector(celerite_params)
-
-	def log_likelihood(self, residuals):
-		return self.gp.log_likelihood(residuals)
-
-	def predict(self, y, t=None, return_cov=True, return_var=False):
-		return self.gp.predict(y, t, return_cov, return_var)
+if __name__ == "__main__":
+    # Process arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("lc_file")
+    parser.add_argument("config_file")
+    args = parser.parse_args()
+    
+    model = Model(args.lc_file, args.config_file)
+    model.run()
