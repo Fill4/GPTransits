@@ -22,6 +22,8 @@ work_path = "/mnt/c/work/astro/gp-paper"
 
 """
 -------------------------- CHAIN ANALYSIS --------------------------
+DEPRECATED: Moved model analysis to the Model class
+"""
 """
 def analise_all():
 	for mission in ["tess-sim", "kepler"]:	
@@ -30,7 +32,7 @@ def analise_all():
 				for run in os.listdir(f"{work_path}/{mission}/{star}"):
 					analyse(mission, star, run, model)
 
-def analyse(mission, star, run, model):
+def analysis(lc_file, config_file):
 	# Setup folder names and load chain and posterior from the pickle files
 	print(f"{f'Analysis - Mission: {mission}, Star: {star}, Run: {run}, Model: {model}':80s}", sep=' ', end='', flush=True)
 	# star_home = f"{work_path}/{mission}/{star}/{run}/model{model}"
@@ -159,36 +161,36 @@ def analyse(mission, star, run, model):
 	# print("[DONE]")
 
 	print(f"{f'Plotting parameter histograms...':80s}", sep=' ', end='', flush=True)
-	parameter_hist = parameter_hist(chain, params, pnames=names)
-	parameter_hist.savefig(f"{figure_folder}/parameter_hist.pdf")
+	parameter_fig = parameter_hist(chain, params, pnames=names)
+	parameter_fig.savefig(f"{figure_folder}/parameter_hist.pdf")
 	print("[DONE]")
 
 	print(f"{f'Plotting corner...':80s}", sep=' ', end='', flush=True)
-	corner_plot = corner_plot(reduced_chain, pnames=names)
-	corner_plot.savefig(f"{figure_folder}/corner_plot.pdf")
+	corner_fig = corner_plot(reduced_chain, pnames=names, downsample=5)
+	corner_fig.savefig(f"{figure_folder}/corner_plot.pdf")
 	print("[DONE]")
 
 	print(f"{f'Plotting posterior histogram...':80s}", sep=' ', end='', flush=True)
-	posterior_hist = posterior_hist(reduced_posterior)
-	posterior_hist.savefig(f"{figure_folder}/posterior_hist.pdf")
+	posterior_fig = posterior_hist(reduced_posterior)
+	posterior_fig.savefig(f"{figure_folder}/posterior_hist.pdf")
 	print("[DONE]")
 
 	print(f"{f'Plotting traces...':80s}", sep=' ', end='', flush=True)
-	trace_plot = trace_plot(chain, posterior, pnames=names, reduce=10)
-	trace_plot.savefig(f"{figure_folder}/trace_plot.pdf")
+	trace_fig = trace_plot(chain, posterior, pnames=names, downsample=10)
+	trace_fig.savefig(f"{figure_folder}/trace_plot.pdf")
 	print("[DONE]")
 
 
 	# Plot the GP dist, and PSD of the distributions
 	print(f"{f'Plotting GP...':80s}", sep=' ', end='', flush=True)
-	gp_plot, gp_zoom = gp_plot(gp_model, mean_model, params, time, flux, flux_err)
-	gp_plot.savefig(f"{figure_folder}/gp_plot.pdf")
-	gp_zoom.savefig(f"{figure_folder}/gp_zoom_plot.pdf")
+	gp_fig, gp_zoom_fig = gp_plot(gp_model, mean_model, params, time, flux, flux_err)
+	gp_fig.savefig(f"{figure_folder}/gp_plot.pdf")
+	gp_zoom_fig.savefig(f"{figure_folder}/gp_zoom_plot.pdf")
 	print("[DONE]")
 
 	print(f"{f'Plotting PSD...':80s}", sep=' ', end='', flush=True)
-	psd_plot = psd_plot(gp_model, params, time, flux, include_data=True, parseval_norm=True)
-	psd_plot.savefig(f"{figure_folder}/psd_plot.pdf")
+	psd_fig = psd_plot(gp_model, params, time, flux, include_data=True, parseval_norm=True)
+	psd_fig.savefig(f"{figure_folder}/psd_plot.pdf")
 	print("[DONE]")
 
 	# Output to file
@@ -199,6 +201,7 @@ def analyse(mission, star, run, model):
 	# print(f"{'-'*86}")
 
 	plt.close("all")
+"""
 """
 --------------------------------------------------------------------
 """
