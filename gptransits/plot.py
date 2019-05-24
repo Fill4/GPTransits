@@ -126,9 +126,9 @@ def gp_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, o
 	# Setup the transit model if there is a transit. Get both the normal sampled and oversampled mean.
 	if mean_model is not None:
 		mean_model.init_model(time, time[1]-time[0], 1)
-		mean = mean_model.get_value(params["median"][gp_ndim:])
+		mean = mean_model.get_value(params["median"][gp_ndim:], time)
 		mean_model.init_model(x, time[1]-time[0], 1)
-		overmean = mean_model.get_value(params["median"][gp_ndim:])
+		overmean = mean_model.get_value(params["median"][gp_ndim:], x)
 	
 	# Setup the gp from the gp_model
 	kernel = gp_model.get_kernel(params["median"][:gp_ndim])
