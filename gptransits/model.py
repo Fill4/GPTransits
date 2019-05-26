@@ -228,7 +228,7 @@ class Model():
                 pickle.dump(sampler.lnprobability, f, protocol=-1)
 
     @classmethod
-    def analysis(cls):
+    def analysis(cls, plot=True):
         # Setup folder names and load chain and posterior from the pickle files
         logging.info(f"Running analysis on: {cls.lc_file} ...")
         
@@ -295,10 +295,6 @@ class Model():
         r_hat, _, _ = gelman_rubin(reduced_chain)
         r_mvar = gelman_brooks(reduced_chain)
 
-        logging.info(f"Plotting Gelman-Rubin analysis ...")
-        gelman_fig = gelman_rubin_plot(reduced_chain, pnames=names)
-        gelman_fig.savefig(f"{figure_folder}/gelman_plot.pdf")
-
         logging.info(f"Calculating Gelman-Brooks diagnostic ...")
         r_hat_str = "".join([" {:>9.5f}".format(ri) for ri in r_hat])
         output = f"{output} {r_mvar.max():>9.5f}{r_hat_str}"
@@ -329,33 +325,37 @@ class Model():
         # results_str = "".join([f" {median[i]:>15.10f} {lower[i]:>15.10f} {upper[i]:>15.10f}" for i in range(median.size)])
         # output = f"{output}{results_str}\n"
         """
+        
+        if plot:
+            logging.info(f"Plotting Gelman-Rubin analysis ...")
+            gelman_fig = gelman_rubin_plot(reduced_chain, pnames=names)
+            gelman_fig.savefig(f"{figure_folder}/gelman_plot.pdf")
 
-        logging.info(f"Plotting parameter histograms ...")
-        parameter_fig = parameter_hist(chain, params, pnames=names)
-        parameter_fig.savefig(f"{figure_folder}/parameter_hist.pdf")
+            logging.info(f"Plotting parameter histograms ...")
+            parameter_fig = parameter_hist(chain, params, pnames=names)
+            parameter_fig.savefig(f"{figure_folder}/parameter_hist.pdf")
 
-        logging.info(f"Plotting corner ...")
-        corner_fig = corner_plot(reduced_chain, pnames=names, downsample=5)
-        corner_fig.savefig(f"{figure_folder}/corner_plot.pdf")
+            logging.info(f"Plotting corner ...")
+            corner_fig = corner_plot(reduced_chain, pnames=names, downsample=5)
+            corner_fig.savefig(f"{figure_folder}/corner_plot.pdf")
 
-        logging.info(f"Plotting posterior histogram ...")
-        posterior_fig = posterior_hist(reduced_posterior)
-        posterior_fig.savefig(f"{figure_folder}/posterior_hist.pdf")
+            logging.info(f"Plotting posterior histogram ...")
+            posterior_fig = posterior_hist(reduced_posterior)
+            posterior_fig.savefig(f"{figure_folder}/posterior_hist.pdf")
 
-        logging.info(f"Plotting traces ...")
-        trace_fig = trace_plot(chain, posterior, pnames=names, downsample=10)
-        trace_fig.savefig(f"{figure_folder}/trace_plot.pdf")
+            logging.info(f"Plotting traces ...")
+            trace_fig = trace_plot(chain, posterior, pnames=names, downsample=10)
+            trace_fig.savefig(f"{figure_folder}/trace_plot.pdf")
 
+            # Plot the GP dist, and PSD of the distributions
+            logging.info(f"Plotting GP ...")
+            gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err)
+            gp_fig.savefig(f"{figure_folder}/gp_plot.pdf")
+            gp_zoom_fig.savefig(f"{figure_folder}/gp_zoom_plot.pdf")
 
-        # Plot the GP dist, and PSD of the distributions
-        logging.info(f"Plotting GP ...")
-        gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err)
-        gp_fig.savefig(f"{figure_folder}/gp_plot.pdf")
-        gp_zoom_fig.savefig(f"{figure_folder}/gp_zoom_plot.pdf")
-
-        logging.info(f"Plotting PSD ...")
-        psd_fig = psd_plot(cls.gp_model, params, cls.time, cls.flux, include_data=True, parseval_norm=True)
-        psd_fig.savefig(f"{figure_folder}/psd_plot.pdf")
+            logging.info(f"Plotting PSD ...")
+            psd_fig = psd_plot(cls.gp_model, params, cls.time, cls.flux, include_data=True, parseval_norm=True)
+            psd_fig.savefig(f"{figure_folder}/psd_plot.pdf")
 
         # Output to file
         # logging.info(f"Writing output to file ...")
