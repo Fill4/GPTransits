@@ -65,8 +65,8 @@ def parameter_hist(chain, params, bins=50, pnames=None):
 		if "median" in params:
 			ax[i].axvline(params["median"][i], color="r", alpha=0.8, label="Median")
 			if "hpd_down" in params and "hpd_up" in params:
-				ax[i].axvline(params["median"][i] + params["hpd_up"][i], color="r", ls="--", alpha=0.8, label="HPD+")
-				ax[i].axvline(params["median"][i] - params["hpd_down"][i], color="r", ls="--", alpha=0.8, label="HPD-")
+				ax[i].axvline(params["hpd_up"][i], color="r", ls="--", alpha=0.8, label="HPD+")
+				ax[i].axvline(params["hpd_down"][i], color="r", ls="--", alpha=0.8, label="HPD-")
 		if "mapv" in params:
 			ax[i].axvline(params["mapv"][i], color="b", alpha=0.8, label="MAP")
 		if "modes" in params:

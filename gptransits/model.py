@@ -228,7 +228,7 @@ class Model():
                 pickle.dump(sampler.lnprobability, f, protocol=-1)
 
     @classmethod
-    def analysis(cls, plot=True):
+    def analysis(cls, plot=True, fout=None):
         # Setup folder names and load chain and posterior from the pickle files
         logging.info(f"Running analysis on: {cls.lc_file} ...")
         
@@ -310,6 +310,12 @@ class Model():
         params["mapv"] = mapv(reduced_chain, reduced_posterior)
         params["modes"] = mode(chain)
 
+        ix = 6
+        logging.info(params["hpd_up"][ix])
+        logging.info(params["median"][ix])
+        logging.info(params["hpd_down"][ix])
+        logging.info(params["modes"][ix])
+
         results_str = "".join([f"{params['mapv'][i]:>15.10f} {params['modes'][i]:>15.10f} {params['median'][i]:>15.10f} {params['hpd_down'][i]:>15.10f} {params['hpd_up'][i]:>15.10f} {params['hpd_99_interval'][i]:>15.10f}" for i in range(params['median'].size)])
         output = f"{output}{results_str}\n"
 
@@ -325,7 +331,7 @@ class Model():
         # results_str = "".join([f" {median[i]:>15.10f} {lower[i]:>15.10f} {upper[i]:>15.10f}" for i in range(median.size)])
         # output = f"{output}{results_str}\n"
         """
-        
+
         if plot:
             logging.info(f"Plotting Gelman-Rubin analysis ...")
             gelman_fig = gelman_rubin_plot(reduced_chain, pnames=names)
@@ -358,9 +364,10 @@ class Model():
             psd_fig.savefig(f"{figure_folder}/psd_plot.pdf")
 
         # Output to file
-        # logging.info(f"Writing output to file ...")
-        # with open(f"{work_path}/results/{mission}_model{model}_runs_test.txt", "a+") as o:
-        # 	o.write(output)
+        if output is not None:
+            logging.info(f"Writing output to file {fout}...")
+            with open(fout, "a+") as o:
+                o.write(output)
         
         logging.info(f"{'-'*40}")
         plt.close("all")
