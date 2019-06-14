@@ -49,6 +49,8 @@ class Model():
     gp_model_ndim = 0
     gp = None
 
+    lnlike_func = None
+
     @classmethod
     def __init__(cls, lc_file, config_file):
         cls.lc_file = Path(lc_file)
@@ -84,8 +86,8 @@ class Model():
     @classmethod
     def load_data(cls):
         # Read data from file
-        logging.info(f'Working in directory: {cls.lc_file.parent.resolve()}')
         logging.info(f'Reading data from: {cls.lc_file.name}')
+        logging.info(f'Working in directory: {cls.lc_file.parent.resolve()}')
         try:
             time, flux, flux_err = np.loadtxt(cls.lc_file, unpack=True)
         except ValueError:
@@ -118,42 +120,33 @@ class Model():
             cls.mean_model_ndim = cls.mean_model.mask.sum()
             cls.has_mean_model = True
 
-        # Setup gp model. Create a setup_gp_model() function that reads in an external config file
-        cls.gp_model = GPModel(cls.config.gp)
-        kernel = cls.gp_model.get_kernel(cls.gp_model.sample_prior()[0])
-        cls.gp_model_ndim = kernel.get_parameter_vector().size
+        if hasattr(cls.config, "gp"):
+            # Setup gp model. Create a setup_gp_model() function that reads in an external config file
+            cls.gp_model = GPModel(cls.config.gp)
+            kernel = cls.gp_model.get_kernel(cls.gp_model.sample_prior()[0])
+            cls.gp_model_ndim = kernel.get_parameter_vector().size
 
-        # Setup celerite gp with kernel. Time goes in microseconds for the muHz parameters in the GP
-        cls.gp = celerite.GP(kernel)
-        days_to_microsec = (24*3600) / 1e6
-        if cls.settings.include_errors:
-            cls.gp.compute(cls.time*days_to_microsec, yerr=cls.flux_err)
-        else:
-            cls.gp.compute(cls.time*days_to_microsec)
+            # Setup celerite gp with kernel. Time goes in microseconds for the muHz parameters in the GP
+            cls.gp = celerite.GP(kernel)
+            days_to_microsec = (24*3600) / 1e6
+            if cls.settings.include_errors:
+                cls.gp.compute(cls.time*days_to_microsec, yerr=cls.flux_err)
+            else:
+                cls.gp.compute(cls.time*days_to_microsec)
 
-    # Defines the likelihood function for emcee. Classmethod (global) to allow for multithreading
-    @classmethod
-    def log_likelihood(cls, params):
-        gp_lnprior = cls.gp_model.lnprior(params[:cls.gp_model_ndim])
-        if cls.has_mean_model:
-            mean_lnprior = cls.mean_model.lnprior(params[cls.gp_model_ndim:])
-        else:
-            mean_lnprior = 0
-        if not (np.isfinite(gp_lnprior) and np.isfinite(mean_lnprior)):
-            return -np.inf
-        
-        # Convert params to celerite model and update gp object
-        gp_params = cls.gp_model.get_parameters_celerite(params[:cls.gp_model_ndim])
-        cls.gp.set_parameter_vector(gp_params)
 
-        if cls.has_mean_model:
-            mean = cls.mean_model.get_value(params[cls.gp_model_ndim:], cls.time)
-            lnlikelihood = cls.gp.log_likelihood(cls.flux - mean)
+        if cls.mean_model is not None and cls.gp_model is not None:
+            cls.lnlike_func = cls.full_lnlike
+            logging.info("Model with GP and transit")
+        elif cls.gp_model is not None:
+            cls.lnlike_func = cls.gp_lnlike
+            logging.info("Model with GP")
+        elif cls.mean_model is not None:
+            cls.lnlike_func = cls.transit_lnlike
+            logging.info("Model with transit")
         else:
-            lnlikelihood = cls.gp.log_likelihood(cls.flux)
-            
-        # return mean_lnprior + gp_lnprior + lnlikelihood
-        return gp_lnprior + lnlikelihood
+            logging.error("Need to define at least a gp or transit model")
+            sys.exit()
     
     @classmethod
     def run(cls):
@@ -192,20 +185,23 @@ class Model():
         # If the initial params are not taken from the backend init them from the prior
         if set_params:
             # Sample priors to get initial values for all walkers
-            init_gp_params = cls.gp_model.sample_prior(num=nwalkers)
-            if cls.mean_model is not None:
+            if cls.gp_model is not None and cls.mean_model is not None:
+                init_gp_params = cls.gp_model.sample_prior(num=nwalkers)
                 init_mean_params = cls.mean_model.sample_prior(num=nwalkers)
                 init_params = np.hstack([init_gp_params, init_mean_params])
-            else:
-                init_params = init_gp_params
+            elif cls.mean_model is not None:
+                init_params = cls.mean_model.sample_prior(num=nwalkers)
+            elif cls.gp_model is not None:
+                init_params = cls.gp_model.sample_prior(num=nwalkers)
 
         # Multiprocessing settings and sampler initialization
-        cls.settings.num_threads = 6 # Just a small hack before things are changed
+        # cls.settings.num_threads = 6 # Just a small hack before things are changed. TODO: Need global override option
         if cls.settings.num_threads != 1:
+            # with Pool(cls.settings.num_threads) as pool:
             pool = Pool(cls.settings.num_threads)
-            sampler = emcee.EnsembleSampler(nwalkers, ndim, cls.log_likelihood, pool=pool, backend=backend)
+            sampler = emcee.EnsembleSampler(nwalkers, ndim, cls.lnlike_func, pool=pool, backend=backend)
         else:
-            sampler = emcee.EnsembleSampler(nwalkers, ndim, cls.log_likelihood, backend=backend)
+            sampler = emcee.EnsembleSampler(nwalkers, ndim, cls.lnlike_func, backend=backend)
 
         # Run mcmc
         logging.info(f"Runnning MCMC on {cls.settings.num_threads} processes for {nsteps} iterations...")
@@ -227,14 +223,67 @@ class Model():
             with open(cls.lc_file.parent / "output" / "lnprobability.pk", "wb") as f:
                 pickle.dump(sampler.lnprobability, f, protocol=-1)
 
+
+    # -------------------------------------------------------------------------------------------
+    # LIKELIHOOD FUNCTIONS
+    # -------------------------------------------------------------------------------------------
+    # Defines the likelihood function for emcee. Classmethod (global) to allow for multithreading
+    @classmethod
+    def full_lnlike(cls, params):
+        gp_lnprior = cls.gp_model.lnprior(params[:cls.gp_model_ndim])
+        mean_lnprior = cls.mean_model.lnprior(params[cls.gp_model_ndim:])
+        if not (np.isfinite(gp_lnprior) and np.isfinite(mean_lnprior)):
+            return -np.inf
+        
+        # Convert params to celerite model and update gp object
+        gp_params = cls.gp_model.get_parameters_celerite(params[:cls.gp_model_ndim])
+        cls.gp.set_parameter_vector(gp_params)
+
+        mean = cls.mean_model.get_value(params[cls.gp_model_ndim:], cls.time)
+        lnlikelihood = cls.gp.log_likelihood(cls.flux - mean)
+            
+        return mean_lnprior + gp_lnprior + lnlikelihood
+
+    @classmethod
+    def gp_lnlike(cls, params):
+        gp_lnprior = cls.gp_model.lnprior(params)
+        if not np.isfinite(gp_lnprior):
+            return -np.inf
+        
+        # Convert params to celerite model and update gp object
+        cls.gp.set_parameter_vector(cls.gp_model.get_parameters_celerite(params))
+
+        lnlikelihood = cls.gp.log_likelihood(cls.flux)
+            
+        return gp_lnprior + lnlikelihood
+
+    @classmethod
+    def transit_lnlike(cls, params):
+        mean_lnprior = -cls.mean_model.lnprior(params[cls.gp_model_ndim:])
+        if not np.isfinite(mean_lnprior):
+            return -np.inf
+    
+        residuals = cls.flux - cls.mean_model.get_value(params, cls.time)
+        lnlikelihood = np.sum(-0.5 * residuals**2)
+        
+        # if lnlikelihood > -18.5:
+        # logging.info(f"lnlikelihood: {lnlikelihood}")
+
+        return mean_lnprior + lnlikelihood
+
+
+    # -------------------------------------------------------------------------------------------
+    # ANALYSIS
+    # -------------------------------------------------------------------------------------------
     @classmethod
     def analysis(cls, plot=True, fout=None):
         # Setup folder names and load chain and posterior from the pickle files
-        logging.info(f"Running analysis on: {cls.lc_file} ...")
+        logging.info(f"Running analysis on: {cls.lc_file.stem} ...")
         
         output_folder = cls.lc_file.parent / "output"
+        logging.info(f"Fetching data from: {output_folder}")
         if not output_folder.is_dir():
-            logging.error(f"No directory with data to analyse in: {cls.lc_file.parent / 'output'}")
+            logging.error(f"No directory with target data to analyse: {cls.lc_file.parent / 'output'}")
             sys.exit(5)
 
         figure_folder = cls.lc_file.parent / "figures"
@@ -252,13 +301,14 @@ class Model():
         #     logging.error("Can't open chain or lnprobability file")
         #     sys.exit(7)
 
-
-        gp_names = cls.gp_model.get_parameters_latex()
-        if cls.has_mean_model:
+        if cls.gp_model is not None and cls.mean_model is not None:
+            gp_names = cls.gp_model.get_parameters_latex()
             transit_names = cls.mean_model.get_parameters_latex()
             names = np.hstack([gp_names, transit_names])
-        else:
-            names = gp_names
+        elif cls.mean_model is not None:
+            names = cls.mean_model.get_parameters_latex()
+        elif cls.gp_model is not None:
+            names = cls.gp_model.get_parameters_latex()
 
         output = f"{cls.lc_file.stem:>13s}"
 
@@ -310,12 +360,6 @@ class Model():
         params["mapv"] = mapv(reduced_chain, reduced_posterior)
         params["modes"] = mode(chain)
 
-        ix = 6
-        logging.info(params["hpd_up"][ix])
-        logging.info(params["median"][ix])
-        logging.info(params["hpd_down"][ix])
-        logging.info(params["modes"][ix])
-
         results_str = "".join([f"{params['mapv'][i]:>15.10f} {params['modes'][i]:>15.10f} {params['median'][i]:>15.10f} {params['hpd_down'][i]:>15.10f} {params['hpd_up'][i]:>15.10f} {params['hpd_99_interval'][i]:>15.10f}" for i in range(params['median'].size)])
         output = f"{output}{results_str}\n"
 
@@ -355,16 +399,17 @@ class Model():
 
             # Plot the GP dist, and PSD of the distributions
             logging.info(f"Plotting GP ...")
-            gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err)
+            gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.1, oversample=10)
             gp_fig.savefig(f"{figure_folder}/gp_plot.pdf")
             gp_zoom_fig.savefig(f"{figure_folder}/gp_zoom_plot.pdf")
 
-            logging.info(f"Plotting PSD ...")
-            psd_fig = psd_plot(cls.gp_model, params, cls.time, cls.flux, include_data=True, parseval_norm=True)
-            psd_fig.savefig(f"{figure_folder}/psd_plot.pdf")
+            if cls.gp_model is not None:
+                logging.info(f"Plotting PSD ...")
+                psd_fig = psd_plot(cls.gp_model, params, cls.time, cls.flux, include_data=True, parseval_norm=True)
+                psd_fig.savefig(f"{figure_folder}/psd_plot.pdf")
 
         # Output to file
-        if output is not None:
+        if fout is not None:
             logging.info(f"Writing output to file {fout}...")
             with open(fout, "a+") as o:
                 o.write(output)
