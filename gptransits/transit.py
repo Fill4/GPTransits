@@ -88,7 +88,7 @@ class BatmanModel(object):
 		self.batpars.t0 = self.pars[1]
 		self.batpars.rp = self.pars[2]
 		self.batpars.a = self.pars[3]
-		self.batpars.inc = np.rad2deg(np.arccos(self.pars[4]))
+		self.batpars.inc = np.rad2deg(np.arccos(self.pars[4]/self.pars[3]))
 		self.batpars.ecc = self.pars[5]
 		self.batpars.w = self.pars[6]
 		self.batpars.u = [self.pars[7], self.pars[8]]
