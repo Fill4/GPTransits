@@ -264,7 +264,11 @@ class Model():
             return -np.inf
     
         residuals = cls.flux - cls.mean_model.get_value(params, cls.time)
-        lnlikelihood = np.sum(-0.5 * residuals**2)
+        # TODO: Needs white noise component added here maybe
+        if cls.flux_err is not None:
+            lnlikelihood = np.sum(-0.5 * (residuals**2 / cls.flux_err**2))
+        else:
+            lnlikelihood = np.sum(-0.5 * residuals**2)
         
         # if lnlikelihood > -18.5:
         # logging.info(f"lnlikelihood: {lnlikelihood}")
@@ -399,7 +403,7 @@ class Model():
 
             # Plot the GP dist, and PSD of the distributions
             logging.info(f"Plotting GP ...")
-            gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.1, oversample=10)
+            gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.05, oversample=10)
             gp_fig.savefig(f"{figure_folder}/gp_plot.pdf")
             gp_zoom_fig.savefig(f"{figure_folder}/gp_zoom_plot.pdf")
 

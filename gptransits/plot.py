@@ -181,7 +181,7 @@ def gp_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, o
 
 		# Plot the model with GP predictive distribution
 		ax.plot(x, model, color="#ff7f0e", linewidth=1, label= 'Model')
-		ax.fill_between(x, model+std, model-std, color="#ff7f0e", alpha=0.4, edgecolor="none", label= r"1$\sigma$", linewidth=1.2)
+		
 		# Plot the GP mean
 		ax.plot(x, mu, color="red", linewidth=1, label="GP")
 		# Plot the mean model
@@ -199,7 +199,7 @@ def gp_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, o
 		ax_zoom.plot(x_zoom, model_zoom, color="#ff7f0e", label= 'Model', linewidth=2)
 		ax_zoom.fill_between(x_zoom, model_zoom+std_zoom, model_zoom-std_zoom, color="#ff7f0e", alpha=0.4, edgecolor="none", label= r"1$\sigma$", linewidth=1.5)
 		# Plot the GP mean
-		ax.plot(x_zoom, mu_zoom, color="red", linewidth=2, label="GP")
+		ax_zoom.plot(x_zoom, mu_zoom, color="red", linewidth=2, label="GP")
 		# Plot the mean model
 		ax_zoom.plot(x_zoom, overmean_zoom, color="blue", linewidth=2, label='Transit')
 	
