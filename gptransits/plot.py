@@ -10,7 +10,7 @@ from astropy.convolution import convolve, Box1DKernel
 from .convergence import gelman_rubin
 
 days_to_microsec = (24*3600) / 1e6
-font = 15
+font = 20
 
 # ----------------------------- PLOTTING ----------------------------------
 def gelman_rubin_plot(chain, steps=100, pnames=None):
@@ -148,13 +148,13 @@ def gp_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, o
 	fig, ax = plt.subplots(figsize=(14, 10))
 	fig.subplots_adjust(left=.12, bottom=.10, right=.95, top=.92)
 	# Plot initial data with errors
-	ax.errorbar(time, flux, yerr=flux_err, fmt=".k", capsize=0, label="Data points", markersize="5", elinewidth=1.2, alpha=0.5)
+	ax.errorbar(time, flux, yerr=flux_err, fmt=".k", capsize=0, label="Data", markersize="5", elinewidth=1.2, alpha=0.5)
 
 	# Zoomed in figure
 	fig_zoom, ax_zoom = plt.subplots(figsize=(14, 10))
-	fig_zoom.subplots_adjust(left=.12, bottom=.10, right=.95, top=.92)
+	fig_zoom.subplots_adjust(left=.12, bottom=.10, right=.95, top=.95)
 	# Plot initial data with errors in both subplots
-	ax_zoom.errorbar(time_zoom, flux_zoom, yerr=flux_err_zoom, fmt=".k", capsize=0, label="Data points", markersize="8", elinewidth=1, alpha=0.5)
+	ax_zoom.errorbar(time_zoom, flux_zoom, yerr=flux_err_zoom, fmt=".k", capsize=0, label="Data", markersize="8", elinewidth=1, alpha=0.5)
 	
 	# If we have both a GP noise model and a mean model, plot them separated and together
 	if gp_model is not None and mean_model is not None:
@@ -260,9 +260,9 @@ def gp_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, o
 
 	return fig, fig_zoom
 
-def psd_plot(gp_model, params, time, flux, include_data=True, parseval_norm=True):
-	
-	fig, ax = plt.subplots(figsize=(14, 10))
+def psd_plot(gp_model, mean_model, params, time, flux, include_data=True, parseval_norm=True):
+
+	fig, ax = plt.subplots(figsize=(14, 8))
 	fig.subplots_adjust(left=.10, bottom=.10, right=.95, top=.95)
 
 	names = gp_model.get_component_names()
@@ -279,14 +279,19 @@ def psd_plot(gp_model, params, time, flux, include_data=True, parseval_norm=True
 	# ax.loglog(freq, nobump_power, ls='--', color='r', label='Model without gaussian', lw=2, alpha=0.8)
 	ax.loglog(freq, full_psd, ls="-", color='k', label='Power Spectrum', lw=2)
 	
-	ax.set_title("Power Spectrum", fontsize=font)
+	# ax.set_title("Power Spectrum", fontsize=font)
 	ax.set_xlabel(r'Frequency ($\mu$Hz)', fontsize=font)
 	ax.set_ylabel(r'PSD (ppm$^2$/$\mu$Hz)', fontsize=font)
 	ax.tick_params(labelsize=font)
 	
 	if include_data:
+
 		# Psd from data
-		freq2, power = LombScargle(time*days_to_microsec, flux).autopower(nyquist_factor=1, normalization='psd', samples_per_peak=1)
+		mean_model.init_model(time, time[1]-time[0], 1)
+		mean = mean_model.get_value(params["median"][gp_ndim:], time)
+		res_flux = flux - mean
+
+		freq2, power = LombScargle(time*days_to_microsec, res_flux).autopower(nyquist_factor=1, normalization='psd', samples_per_peak=1)
 
 		# Parseval Normalization (Enrico)
 		if parseval_norm:
@@ -302,7 +307,154 @@ def psd_plot(gp_model, params, time, flux, include_data=True, parseval_norm=True
 		ax.loglog(freq2, convolve(power, Box1DKernel(10)), color='k', alpha=0.5, lw=2, label='Smoothed Data')
 	
 	ax.set_xlim([1,300])
-	ax.set_ylim([1e-1, 5e4])
+	ax.set_ylim([1, 1e4])
 	ax.legend(loc="lower left", fontsize=font)
+
+	return fig
+
+def gp_double_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, offset=0.0, oversample=5):
+
+	# Global font size
+	font=23
+
+	# Oversampled array for plotting
+	cadence = time[1]-time[0]
+	x = np.linspace(time[0], time[-1], num=int((time[-1]-time[0])/cadence*oversample)) # Timespan / cadence * 5
+
+	if (zoom + offset) > 1.0:
+		print("Zoom + Offset percentages are larger than 1.0")
+		sys.exit()
+	# Zoom in limits
+	low = np.where(time >= (((time[-1]-time[0]) * offset) + time[0]) )[0][0]
+	up = np.where(time >= (((time[-1]-time[0]) * (offset + zoom)) + time[0]))[0][0]
+	olow = np.where(x >= (((time[-1]-time[0]) * offset) + time[0]))[0][0]
+	oup = np.where(x >= (((time[-1]-time[0]) * (offset + zoom)) + time[0]))[0][0]
+
+	# Zoom in data arrays
+	time_zoom = time[low:up]
+	flux_zoom = flux[low:up]
+	if flux_err is None:
+		flux_err_zoom = None
+	else:
+		flux_err_zoom = flux_err[low:up]
+
+
+	# Setup global figure
+	fig, axs = plt.subplots(ncols=1, nrows=2, figsize=(14, 12))
+	fig.subplots_adjust(left=.12, bottom=.10, right=.95, top=.95)
+
+	ax = axs[0]
+	ax_zoom = axs[1]
+
+	# Plot initial data with errors
+	ax.errorbar(time, flux, yerr=flux_err, fmt=".k", capsize=0, label="Data", markersize="5", elinewidth=1.2, alpha=0.5)
+
+	# Zoomed in figure
+	# fig_zoom, ax_zoom = plt.subplots(figsize=(14, 10))
+	# fig_zoom.subplots_adjust(left=.12, bottom=.10, right=.95, top=.92)
+	# Plot initial data with errors in both subplots
+	ax_zoom.errorbar(time_zoom, flux_zoom, yerr=flux_err_zoom, fmt=".k", capsize=0, label="Data", markersize="8", elinewidth=1, alpha=0.5)
+	
+	# If we have both a GP noise model and a mean model, plot them separated and together
+	if gp_model is not None and mean_model is not None:
+		gp_ndim = gp_model.get_parameters_names().size
+
+		#Setup mean_model
+		mean_model.init_model(time, time[1]-time[0], 1)
+		mean = mean_model.get_value(params["median"][gp_ndim:], time)
+		mean_model.init_model(x, time[1]-time[0], 1)
+		overmean = mean_model.get_value(params["median"][gp_ndim:], x)
+
+		# Setup the gp from the gp_model
+		kernel = gp_model.get_kernel(params["median"][:gp_ndim])
+		gp = celerite.GP(kernel)
+		if flux_err is None:
+			gp.compute(time*days_to_microsec)
+		else:
+			gp.compute(time*days_to_microsec, yerr=flux_err) 
+
+		mu, var = gp.predict(flux-mean, x*days_to_microsec, return_var=True)
+		model = mu + overmean
+		std = np.sqrt(var)
+		std = np.nan_to_num(std)
+
+		# Plot the model with GP predictive distribution
+		ax.plot(x, model, color="#ff7f0e", linewidth=1, alpha=0.7, label= 'Model')
+		
+		# Plot the GP mean
+		# ax.plot(x, mu, color="red", linewidth=1, alpha=0.5, label="GP")
+		# Plot the mean model
+		ax.plot(x, overmean, color="blue", linewidth=1, alpha=0.7, label='Transit')
+
+
+		# Repeat for the zoomed in plot
+		x_zoom = x[olow:oup]
+		mu_zoom = mu[olow:oup]
+		std_zoom = std[olow:oup]
+		model_zoom = model[olow:oup]
+		overmean_zoom = overmean[olow:oup]
+
+		# Plot the GP predictive distribution
+		ax_zoom.plot(x_zoom, model_zoom, color="#ff7f0e", label= 'Model', linewidth=2, alpha=0.5)
+		ax_zoom.fill_between(x_zoom, model_zoom+std_zoom, model_zoom-std_zoom, color="#ff7f0e", alpha=0.4, edgecolor="none", label= r"1$\sigma$", linewidth=1.5)
+		# Plot the GP mean
+		ax_zoom.plot(x_zoom, mu_zoom, color="red", linewidth=2, alpha=0.5, label="GP")
+		# Plot the mean model
+		ax_zoom.plot(x_zoom, overmean_zoom, color="blue", linewidth=2, alpha=0.5, label='Transit')
+	
+	# We only have the GP noise model and no mean
+	elif gp_model is not None:
+		# Setup the gp from the gp_model
+		kernel = gp_model.get_kernel(params["median"])
+		gp = celerite.GP(kernel)
+		if flux_err is None:
+			gp.compute(time*days_to_microsec)
+		else:
+			gp.compute(time*days_to_microsec, yerr=flux_err) 
+
+		mu, var = gp.predict(flux, x*days_to_microsec, return_var=True)
+		std = np.sqrt(var)
+		std = np.nan_to_num(std)
+
+		# Plot the model with GP predictive distribution
+		ax.plot(x, mu, color="#ff7f0e", linewidth=1, alpha=0.5, label= 'Model')
+		ax.fill_between(x, mu+std, mu-std, color="#ff7f0e", alpha=0.4, edgecolor="none", label= r"1$\sigma$", linewidth=1.2)
+
+
+		# Repeat for the zoomed in plot
+		x_zoom = x[olow:oup]
+		mu_zoom = mu[olow:oup]
+		std_zoom = std[olow:oup]
+
+		# Plot the GP predictive distribution
+		ax_zoom.plot(x_zoom, mu_zoom, color="#ff7f0e", label= 'Model', linewidth=2, alpha=0.5)
+		ax_zoom.fill_between(x_zoom, mu_zoom+std_zoom, mu_zoom-std_zoom, color="#ff7f0e", alpha=0.4, edgecolor="none", label= r"1$\sigma$", linewidth=1.5)
+
+	# Otherwise we only have a mean model
+	elif mean_model is not None:
+		#Setup mean_model
+		mean_model.init_model(x, time[1]-time[0], 1)
+		overmean = mean_model.get_value(params["median"], x)
+
+		# Plot the mean model
+		ax.plot(x, overmean, color="blue", linewidth=1, alpha=0.5, label='Model')
+
+		x_zoom = x[olow:oup]
+		overmean_zoom = overmean[olow:oup]
+
+		# Plot the mean model
+		ax_zoom.plot(x_zoom, overmean_zoom, color="blue", linewidth=2, alpha=0.5, label='Model')
+	
+	# ax.set_title("GP", fontsize=font)
+	ax.set_xlabel('Time (days)', fontsize=font)
+	ax.set_ylabel('Flux (ppm)', fontsize=font)
+	ax.legend(loc='lower right', fontsize=font-4)
+	ax.tick_params(labelsize=font-1)
+
+	# ax_zoom.set_title("GP Zoom-in", fontsize=font)
+	ax_zoom.set_xlabel('Time (days)', fontsize=font)
+	ax_zoom.set_ylabel('Flux (ppm)', fontsize=font)
+	ax_zoom.legend(loc='lower right', fontsize=font-4)
+	ax_zoom.tick_params(labelsize=font-1)
 
 	return fig

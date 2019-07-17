@@ -204,7 +204,7 @@ class Model():
             sampler = emcee.EnsembleSampler(nwalkers, ndim, cls.lnlike_func, backend=backend)
 
         # Run mcmc
-        logging.info(f"Runnning MCMC on {cls.settings.num_threads} processes for {nsteps} iterations...")
+        logging.info(f"Running MCMC on {cls.settings.num_threads} processes for {nsteps} iterations...")
         try:
             sampler.run_mcmc(init_params, nsteps, progress=True)
         except KeyboardInterrupt:
@@ -403,13 +403,19 @@ class Model():
 
             # Plot the GP dist, and PSD of the distributions
             logging.info(f"Plotting GP ...")
-            gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.05, oversample=10)
+            gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.06, oversample=10)
             gp_fig.savefig(f"{figure_folder}/gp_plot.pdf")
             gp_zoom_fig.savefig(f"{figure_folder}/gp_zoom_plot.pdf")
 
+            # Plot the GP dist, and PSD of the distributions
+            logging.info(f"Plotting double GP ...")
+            gp_double_fig = gp_double_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.06, oversample=10)
+            gp_double_fig.savefig(f"{figure_folder}/gp_double_plot.pdf")
+            # gp_double_fig.savefig(f"{figure_folder}/gp_double_plot.png", dpi=800)
+
             if cls.gp_model is not None:
                 logging.info(f"Plotting PSD ...")
-                psd_fig = psd_plot(cls.gp_model, params, cls.time, cls.flux, include_data=True, parseval_norm=True)
+                psd_fig = psd_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, include_data=True, parseval_norm=True)
                 psd_fig.savefig(f"{figure_folder}/psd_plot.pdf")
 
         # Output to file
