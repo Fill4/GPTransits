@@ -117,7 +117,7 @@ def corner_plot(chain, truths=None, pnames=None, downsample=2):
 
 	return fig
 
-def gp_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, offset=0.0, oversample=5):
+def lc_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, offset=0.0, oversample=5):
 
 	# Global font size
 	font=23
@@ -180,12 +180,12 @@ def gp_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, o
 		std = np.nan_to_num(std)
 
 		# Plot the model with GP predictive distribution
-		ax.plot(x, model, color="#ff7f0e", linewidth=1, label= 'Model')
+		ax.plot(x, model, color="#ff7f0e", linewidth=1, alpha=0.8, label= 'Model')
 		
 		# Plot the GP mean
-		ax.plot(x, mu, color="red", linewidth=1, label="GP")
+		# ax.plot(x, mu, color="red", linewidth=1, alpha=0.8, label="GP")
 		# Plot the mean model
-		ax.plot(x, overmean, color="blue", linewidth=1, label='Transit')
+		ax.plot(x, overmean, color="blue", linewidth=1, alpha=0.8, label='Transit')
 
 
 		# Repeat for the zoomed in plot
@@ -287,9 +287,12 @@ def psd_plot(gp_model, mean_model, params, time, flux, include_data=True, parsev
 	if include_data:
 
 		# Psd from data
-		mean_model.init_model(time, time[1]-time[0], 1)
-		mean = mean_model.get_value(params["median"][gp_ndim:], time)
-		res_flux = flux - mean
+		if mean_model is not None:
+			mean_model.init_model(time, time[1]-time[0], 1)
+			mean = mean_model.get_value(params["median"][gp_ndim:], time)
+			res_flux = flux - mean
+		else:
+			res_flux = flux
 
 		freq2, power = LombScargle(time*days_to_microsec, res_flux).autopower(nyquist_factor=1, normalization='psd', samples_per_peak=1)
 
@@ -312,7 +315,7 @@ def psd_plot(gp_model, mean_model, params, time, flux, include_data=True, parsev
 
 	return fig
 
-def gp_double_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, offset=0.0, oversample=5):
+def lc_double_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom=0.1, offset=0.0, oversample=5):
 
 	# Global font size
 	font=23
@@ -379,12 +382,12 @@ def gp_double_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom
 		std = np.nan_to_num(std)
 
 		# Plot the model with GP predictive distribution
-		ax.plot(x, model, color="#ff7f0e", linewidth=1, alpha=0.7, label= 'Model')
+		ax.plot(x, model, color="#ff7f0e", linewidth=1, alpha=0.8, label= 'Model')
 		
 		# Plot the GP mean
 		# ax.plot(x, mu, color="red", linewidth=1, alpha=0.5, label="GP")
 		# Plot the mean model
-		ax.plot(x, overmean, color="blue", linewidth=1, alpha=0.7, label='Transit')
+		ax.plot(x, overmean, color="blue", linewidth=1, alpha=0.8, label='Transit')
 
 
 		# Repeat for the zoomed in plot
@@ -395,12 +398,12 @@ def gp_double_plot(gp_model, mean_model, params, time, flux, flux_err=None, zoom
 		overmean_zoom = overmean[olow:oup]
 
 		# Plot the GP predictive distribution
-		ax_zoom.plot(x_zoom, model_zoom, color="#ff7f0e", label= 'Model', linewidth=2, alpha=0.5)
-		ax_zoom.fill_between(x_zoom, model_zoom+std_zoom, model_zoom-std_zoom, color="#ff7f0e", alpha=0.4, edgecolor="none", label= r"1$\sigma$", linewidth=1.5)
+		ax_zoom.plot(x_zoom, model_zoom, color="#ff7f0e", label= 'Model', linewidth=2, alpha=0.7)
+		ax_zoom.fill_between(x_zoom, model_zoom+std_zoom, model_zoom-std_zoom, color="#ff7f0e", alpha=0.5, edgecolor="none", label= r"1$\sigma$", linewidth=1.5)
 		# Plot the GP mean
-		ax_zoom.plot(x_zoom, mu_zoom, color="red", linewidth=2, alpha=0.5, label="GP")
+		ax_zoom.plot(x_zoom, mu_zoom, color="red", linewidth=2, alpha=0.7, label="GP")
 		# Plot the mean model
-		ax_zoom.plot(x_zoom, overmean_zoom, color="blue", linewidth=2, alpha=0.5, label='Transit')
+		ax_zoom.plot(x_zoom, overmean_zoom, color="blue", linewidth=2, alpha=0.7, label='Transit')
 	
 	# We only have the GP noise model and no mean
 	elif gp_model is not None:
