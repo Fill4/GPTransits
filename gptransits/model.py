@@ -3,8 +3,11 @@
 Fits a transit model together with a Gaussian Process model created by celerite to lightcurve observations
 """
 
-import sys
+import sys, os
 import copy
+import time
+# import signal
+# import psutil
 import pickle
 from pathlib import Path
 import logging
@@ -31,6 +34,8 @@ from .plot import *
 __all__ = ["Model"]
 
 class Model():
+    # parent_id = os.getpid()
+
     lc_file = None
     config_file = None
     config = None
@@ -50,6 +55,9 @@ class Model():
     gp = None
 
     lnlike_func = None
+
+    chain = None
+    posterior = None
 
     @classmethod
     def __init__(cls, lc_file, config_file):
@@ -148,6 +156,23 @@ class Model():
             logging.error("Need to define at least a gp or transit model")
             sys.exit()
     
+    # TODO: WIP to catch KeyboardInterrupt in emcee run. Requires psutil and signal
+    # @classmethod
+    # def worker_init(cls):
+    #     def sig_int(signal_num, frame):
+    #         print('signal: %s' % signal_num)
+    #         parent = psutil.Process(cls.parent_id)
+    #         for child in parent.children():
+    #             if child.pid != os.getpid():
+    #                 print("killing child: %s" % child.pid)
+    #                 child.kill()
+    #         # TODO: Parent is killing ipython.
+    #         print("killing parent: %s" % cls.parent_id)
+    #         parent.kill()
+    #         print("suicide: %s" % os.getpid())
+    #         psutil.Process(os.getpid()).kill()
+    #     signal.signal(signal.SIGINT, sig_int)
+            
     @classmethod
     def run(cls):
         # -------------------- MCMC ----------------------------
@@ -197,7 +222,7 @@ class Model():
         # Multiprocessing settings and sampler initialization
         # cls.settings.num_threads = 6 # Just a small hack before things are changed. TODO: Need global override option
         if cls.settings.num_threads != 1:
-            # with Pool(cls.settings.num_threads) as pool:
+            # pool = Pool(cls.settings.num_threads, cls.worker_init)
             pool = Pool(cls.settings.num_threads)
             sampler = emcee.EnsembleSampler(nwalkers, ndim, cls.lnlike_func, pool=pool, backend=backend)
         else:
@@ -208,8 +233,11 @@ class Model():
         try:
             sampler.run_mcmc(init_params, nsteps, progress=True)
         except KeyboardInterrupt:
-            logging.exception("User exited on Ctrl-C from run_mcmc")
-            sys.exit(3)
+            logging.error(f"KeyboardInterrupt stopping emcee")
+            sys.exit()
+
+        cls.chain = sampler.chain.copy()
+        cls.posterior = sampler.lnprobability.copy()
 
         # Save data
         if cls.settings.save:
@@ -281,29 +309,34 @@ class Model():
     # -------------------------------------------------------------------------------------------
     @classmethod
     def analysis(cls, plot=True, fout=None):
+
+        start_time = time.time()
         # Setup folder names and load chain and posterior from the pickle files
         logging.info(f"Running analysis on: {cls.lc_file.stem} ...")
         
-        output_folder = cls.lc_file.parent / "output"
-        logging.info(f"Fetching data from: {output_folder}")
-        if not output_folder.is_dir():
-            logging.error(f"No directory with target data to analyse: {cls.lc_file.parent / 'output'}")
-            sys.exit(5)
-
-        figure_folder = cls.lc_file.parent / "figures"
-        if not figure_folder.is_dir():
-            figure_folder.mkdir()
-
         # Read in all data
-        # try:
-        logging.info(f"{output_folder}/chain.pk")
-        with open(f"{output_folder}/chain.pk", "rb") as f:
-            chain = pickle.load(f)
-        with open(f"{output_folder}/lnprobability.pk", "rb") as p:
-            posterior = pickle.load(p)
-        # except Exception:
-        #     logging.error("Can't open chain or lnprobability file")
-        #     sys.exit(7)
+        if cls.chain is not None and cls.posterior is not None:
+            logging.info(f"Using data from instance")
+            chain = cls.chain.copy()
+            posterior = cls.posterior.copy()
+        else:
+            output_folder = cls.lc_file.parent / "output"
+            logging.info(f"Fetching data from: {output_folder}")
+            if not output_folder.is_dir():
+                logging.error(f"No directory with target data to analyse: {cls.lc_file.parent / 'output'}")
+                sys.exit(5)
+
+            logging.info(f"{output_folder}/chain.pk")
+            with open(f"{output_folder}/chain.pk", "rb") as f:
+                chain = pickle.load(f)
+            with open(f"{output_folder}/lnprobability.pk", "rb") as p:
+                posterior = pickle.load(p)
+
+        if plot:
+            figure_folder = cls.lc_file.parent / "figures"
+            if not figure_folder.is_dir():
+                figure_folder.mkdir()
+
 
         if cls.gp_model is not None and cls.mean_model is not None:
             gp_names = cls.gp_model.get_parameters_latex()
@@ -401,16 +434,16 @@ class Model():
             trace_fig = trace_plot(chain, posterior, pnames=names, downsample=10)
             trace_fig.savefig(f"{figure_folder}/trace_plot.pdf")
 
-            # Plot the GP dist, and PSD of the distributions
-            logging.info(f"Plotting GP ...")
-            gp_fig, gp_zoom_fig = gp_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.06, oversample=10)
-            gp_fig.savefig(f"{figure_folder}/gp_plot.pdf")
-            gp_zoom_fig.savefig(f"{figure_folder}/gp_zoom_plot.pdf")
+            # Plot the lightcurve with the GP distribution and/or the transit + zoom in - separately
+            # logging.info(f"Plotting lightcurve and zoom ...")
+            # lc_fig, lc_zoom_fig = lc_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.06, oversample=10)
+            # lc_fig.savefig(f"{figure_folder}/lc_plot.pdf")
+            # lc_zoom_fig.savefig(f"{figure_folder}/lc_zoom_plot.pdf")
 
-            # Plot the GP dist, and PSD of the distributions
-            logging.info(f"Plotting double GP ...")
-            gp_double_fig = gp_double_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.06, oversample=10)
-            gp_double_fig.savefig(f"{figure_folder}/gp_double_plot.pdf")
+            # Plot the lightcurve with the GP distribution and/or the transit + zoom in - same plot
+            logging.info(f"Plotting lightcurve with zoom ...")
+            lc_double_fig = lc_double_plot(cls.gp_model, cls.mean_model, params, cls.time, cls.flux, cls.flux_err, offset=0.06, oversample=10)
+            lc_double_fig.savefig(f"{figure_folder}/lc_double_plot.pdf")
             # gp_double_fig.savefig(f"{figure_folder}/gp_double_plot.png", dpi=800)
 
             if cls.gp_model is not None:
@@ -424,7 +457,7 @@ class Model():
             with open(fout, "a+") as o:
                 o.write(output)
         
-        logging.info(f"{'-'*40}")
+        logging.info(f"Analysis complete: {time.time()-start_time:.4f} seconds")
         plt.close("all")
 
         return output
