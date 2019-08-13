@@ -10,12 +10,20 @@ setup(
     license="MIT",
     packages=["gptransits"],
     description="Fit planetary transits and stellar signals at the same time with the help of gaussian processes",
-    long_description=open("README.md").read(),
 
     python_requires=">=3.6",
-    install_requires=["matplotlib", "numpy", "scipy", "celerite", "batman-package", "astropy", "tqdm", "corner", 
-                        "emcee @ git+https://github.com/dfm/emcee"],
-    
+    install_requires=[ 
+        "matplotlib",
+        "numpy",
+        "scipy",
+        "celerite",
+        "batman-package",
+        "pysyzygy",
+        "astropy",
+        "tqdm",
+        "corner",
+        "emcee>=3.0rc2 @ git+https://github.com/dfm/emcee"
+    ],
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3.6",

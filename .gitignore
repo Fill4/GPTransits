@@ -91,3 +91,8 @@ ENV/
 # Ignore editor settings folders
 .vs
 .vscode
+
+# Unnecessary files
+gptransits/helper.py
+TODO.md
+examples/*/__pycache__
