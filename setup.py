@@ -1,10 +1,12 @@
 
 from setuptools import setup
-import gptransits
+
+# Load the __version__ variable without importing the package already
+exec(open('gptransits/version.py').read())
 
 setup(
     name="gptransits",
-    version=gptransits.__version__,
+    version=__version__,
     author="Filipe Pereira",
     author_email="filipe.pereira@astro.up.pt",
     license="MIT",
@@ -12,17 +14,21 @@ setup(
     description="Fit planetary transits and stellar signals at the same time with the help of gaussian processes",
 
     python_requires=">=3.6",
-    install_requires=[ 
-        "matplotlib",
+    setup_requires=[
         "numpy",
-        "scipy",
-        "celerite",
+        "pybind11",
+    ],
+    install_requires=[ 
+        "numpy",
         "batman-package",
-        "pysyzygy",
-        "astropy",
+        "pybind11",
+        "scipy",
+        "matplotlib",
         "tqdm",
         "corner",
-        "emcee>=3.0rc2 @ git+https://github.com/dfm/emcee"
+        "astropy>=3.0.0",
+        'emcee @ git+https://github.com/dfm/emcee',
+        "celerite==0.3.0",
     ],
     include_package_data=True,
     classifiers=[

@@ -70,8 +70,8 @@ class Model():
             cls.config = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(cls.config)
         except Exception:
-            logging.exception(f"ERROR: Couldn't import {cls.config_file.stem}")
-            sys.exit(1)
+            logging.exception(f"Couldn't import {cls.config_file.stem}")
+            sys.exit()
         sys.modules["config"] = cls.config
 
         if hasattr(cls.config, "settings"):
