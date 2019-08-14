@@ -41,7 +41,7 @@ setup(
         "tqdm",
         "corner",
         "astropy>=3.0.0",
-        'emcee @ git+https://github.com/dfm/emcee',
+        'emcee==3.0rc2',
         "celerite==0.3.0",
     ],
     include_package_data=True,
