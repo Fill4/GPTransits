@@ -96,3 +96,5 @@ ENV/
 gptransits/helper.py
 TODO.md
 examples/*/__pycache__
+examples/*/output
+examples/*/figures
