@@ -22,7 +22,7 @@ from multiprocessing.pool import Pool
 
 
 # Model imports
-from .transit import BatmanModel, PysyzygyModel
+from .transit import BatmanModel#, PysyzygyModel
 from .gp import GPModel
 from .settings import Settings
 
