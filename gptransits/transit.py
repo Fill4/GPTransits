@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import uniform, norm, reciprocal
 
 import batman
-import pysyzygy as ps
+# import pysyzygy as ps
 
 # Define the transit models
 class BatmanModel(object):
@@ -121,7 +121,7 @@ class BatmanModel(object):
 	# 	m = batman.TransitModel(self.pars, self.time, supersample_factor=supersample_factor, exp_time=exp_time)
 	# 	return m.light_curve(self.pars)
 
-
+"""
 class PysyzygyModel(object):
 	def __init__(self, name, params_dict):
 		self.npars = 9
@@ -241,6 +241,8 @@ class PysyzygyModel(object):
 		logging.debug("After pysygyzy flux")
 		return (flux-1)*1e6
 	
+"""
+
 	# def oversample(self, params, supersample_factor=10):
 	# 	self.update_params(params)
 	# 	exp_time = self.time[1]-self.time[0]
