@@ -1,8 +1,13 @@
 
 from setuptools import setup
+from os import path
 
 # Load the __version__ variable without importing the package already
 exec(open('gptransits/version.py').read())
+
+this_directory = path.abspath(path.dirname(__file__))
+with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name="gptransits",
@@ -12,6 +17,8 @@ setup(
     license="MIT",
     packages=["gptransits"],
     description="Fit planetary transits and stellar signals at the same time with the help of gaussian processes",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
 
     python_requires=">=3.6",
     setup_requires=[
