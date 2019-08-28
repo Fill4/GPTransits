@@ -3,17 +3,14 @@
 **Fit planetary transits and stellar signals at the same time with the help of gaussian processes**
 
 ## Installation
-All python dependencies necessary for gptransits are available in pip with the exception of the emcee (version 3.0rc2). This version needs to be installed from the git repository
+All python dependencies necessary for gptransits are available in pip (one of the package dependencies requires numpy to be installed beforehand). These can be seen in [setup.py](https://github.com/Fill4/gptransits/tree/master/setup.py).
 
+*gptransits* can be installed from pip:
 ~~~ bash
-# Install emcee 3.0rc2 from the git repo
-git clone https://github.com/dfm/emcee.git
-cd emcee
-python setup.py install
-
-cd ..
-
-# Install this package
+pip install gptransits
+~~~
+Or from the source:
+~~~ bash
 git clone https://github.com/Fill4/gptransits.git
 cd gptransits
 python setup.py install
